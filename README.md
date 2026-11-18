@@ -1,177 +1,182 @@
-# SensorFireld-PX4.4
+# PX4 — Night-time Human Tracking on Jetson Orin Nano
 
-夜間用の人物追尾システム（PX）。Jetson Orin Nano 上で動かす。
-PIR センサーが人を検知すると、IR カメラの映像から YOLO11 で人を見つけ、パン・チルトのサーボで追う。
+A night-time human tracking turret running on a Jetson Orin Nano.
+When the PIR sensor detects motion, YOLO11 finds the person in the IR camera image
+and two servos (pan / tilt) driven by an Arduino keep the camera pointed at them.
 
-- 推論は **CPU（ONNX Runtime）** と **GPU（TensorRT FP16 / FP32）** を切り替えられる
-- ROS 2 Humble を Docker コンテナで動かす
-- 配線は [docs/WIRING.md](docs/WIRING.md)
+- Inference runs on **CPU (ONNX Runtime)** or **GPU (TensorRT FP16 / FP32)**, selectable at launch
+- ROS 2 Humble runs inside a Docker container
+- Wiring: [docs/WIRING.md](docs/WIRING.md)
 
-| 推論 | 1 フレームあたり（オフライン計測） |
+| Backend | Time per frame (offline benchmark) |
 |---|---|
-| CPU（ONNX Runtime 1.14） | 約 88 ms（起動時の試し推論） |
-| TensorRT FP32 | GPU 計算 8.6 ms |
-| TensorRT FP16 | GPU 計算 5.4 ms、前処理込み合計 10.3 ms（約 97 FPS） |
+| CPU (ONNX Runtime 1.14) | ~88 ms (warm-up inference) |
+| TensorRT FP32 | 8.6 ms GPU compute |
+| TensorRT FP16 | 5.4 ms GPU compute, 10.3 ms end-to-end incl. pre/post-processing (~97 FPS) |
 
-詳しい数値は [docs/02_experiment_data.md](docs/02_experiment_data.md)。
-
----
-
-## 構成
-
-```
-Docker/            Docker イメージ（Dockerfile, docker_enter.sh, Makefile, pir_setup_udev/）
-SeamlessTrack/     ROS 2 ワークスペース（コンテナ内で /ros2_ws/work）
-  src/             システム本体（px2: 推論・制御 / px3: サーボ・PIR / px3_launch / custom_msgs）
-  build_px.sh      ビルド
-  launch_px.sh     起動
-  make_engines.sh  TensorRT エンジンを作る
-  bench/           推論速度の計測
-  engines/         TensorRT エンジン（git に入れない）
-scripts/           Jetson 本体で使うスクリプト（初期設定、性能モード、イメージ保存 など）
-calibration/       PIR・サーボ・カメラの確認とキャリブレーション（Jetson 本体で実行）
-camera_calib_kit/  カメラの内部パラメータ（calib_result_ir.yaml）を作る道具
-ci_checks/         CI のチェック（run_local.sh で手元でも実行できる）
-docs/              配線、構築ログ、実験データ、コマンド集
-PX4.3_archive/     PX4.3 から使わなくなったもの
-```
+Details: [docs/02_experiment_data.md](docs/02_experiment_data.md)
 
 ---
 
-## 動作環境
+## Repository layout
 
-| 項目 | 値 |
+```
+Docker/            Docker image (Dockerfile, docker_enter.sh, Makefile, pir_setup_udev/)
+SeamlessTrack/     ROS 2 workspace (mounted at /ros2_ws/work in the container)
+  src/             Core packages: px2 (inference + control), px3 (servo + PIR), px3_launch, custom_msgs
+  build_px.sh      Build
+  launch_px.sh     Launch
+  make_engines.sh  Build TensorRT engines
+  bench/           Inference benchmarks
+  engines/         TensorRT engines (not tracked by git)
+scripts/           Host-side helpers for the Jetson (setup, performance mode, image backup, ...)
+calibration/       PIR / servo / camera checks and calibration (run on the Jetson host)
+camera_calib_kit/  Tools to generate the camera intrinsics (calib_result_ir.yaml)
+ci_checks/         CI checks (run_local.sh runs them locally)
+docs/              Wiring, build log, experiment data, command reference
+PX4.3_archive/     Files no longer used since PX4.3
+```
+
+---
+
+## Requirements
+
+| Item | Value |
 |---|---|
-| ボード | Jetson Orin Nano 開発キット（8GB） |
-| JetPack | 6.2.x（L4T R36、Ubuntu 22.04） |
-| Docker イメージ | `px-jetson:latest`（l4t-jetpack r36.4.0 + ROS 2 Humble + OpenCV 4.5.4 + ONNX Runtime 1.14.1 CPU + TensorRT 10.3） |
-| カメラ | ELP IR USB カメラ（32e4:9230）、1920x1080 @ 30 fps |
-| マイコン | Arduino（Telemetrix）、USB シリアル `/dev/ttyACM0` |
-| センサー | PIR（SB612B）、サーボ 2 個（パン・チルト） |
+| Board | Jetson Orin Nano Developer Kit (8 GB) |
+| JetPack | 6.2.x (L4T R36, Ubuntu 22.04) |
+| Docker image | `px-jetson:latest` — l4t-jetpack r36.4.0 + ROS 2 Humble + OpenCV 4.5.4 + ONNX Runtime 1.14.1 (CPU) + TensorRT 10.3 |
+| Camera | ELP IR USB camera (32e4:9230), 1920x1080 @ 30 fps |
+| Microcontroller | Arduino running Telemetrix, USB serial `/dev/ttyACM0` |
+| Sensors / actuators | PIR sensor (SB612B), 2 servos (pan / tilt) |
 
 ---
 
-## 構築（初回だけ）
+## Setup (first time only)
 
-### 1. Jetson 本体の準備
+### 1. Prepare the Jetson
 ```bash
-git clone <this repo> ~/SensorFireld-PX4.4 && cd ~/SensorFireld-PX4.4
-./scripts/jetson_setup.sh        # 時刻、Docker・シリアル・カメラの権限、カメラの udev
-# 一度ログアウトして入り直す
-./scripts/check_devices.sh       # カメラ・Arduino・権限の確認
+git clone <this repo> ~/PX4 && cd ~/PX4
+./scripts/jetson_setup.sh        # timezone, Docker / serial / camera permissions, camera udev rule
+# log out and log back in
+./scripts/check_devices.sh       # check camera, Arduino and permissions
 ```
 
-### 2. 重いファイルを置く
-git には入れていないので、手元から cp する（下の「重いファイル」参照）。
-最低限必要なのは **`SeamlessTrack/src/px2/weights/yolo11.onnx`**。
+### 2. Copy the large files
+They are not in git. Copy them from your local machine (see [Large files](#large-files)).
+At minimum you need **`SeamlessTrack/src/px2/weights/yolo11.onnx`**.
 
-### 3. Docker イメージを作る
+### 3. Build the Docker image
 ```bash
-cd Docker && make                # px-jetson:latest
+cd Docker && make                # builds px-jetson:latest
 ```
-ONNX Runtime は GitHub から入手できなくなっているため、
-`Docker/third_party/onnxruntime-1.14.1-aarch64.tgz` が必要。
-既存のイメージがあるなら、そこから取り出せる: `./scripts/export_ort_from_image.sh`
+ONNX Runtime 1.14.1 can no longer be downloaded from GitHub, so the build needs
+`Docker/third_party/onnxruntime-1.14.1-aarch64.tgz`.
+If you already have the image, extract it with `./scripts/export_ort_from_image.sh`.
 
-### 4. ビルド（コンテナ内）
+### 4. Build the workspace (inside the container)
 ```bash
-./Docker/docker_enter.sh         # コンテナに入る（/ros2_ws/work = SeamlessTrack/）
+./Docker/docker_enter.sh         # enter the container (/ros2_ws/work = SeamlessTrack/)
 ./build_px.sh
 source install/setup.bash
 ```
 
-### 5. TensorRT エンジンを作る（GPU を使う場合、1 回だけ）
+### 5. Build TensorRT engines (GPU only, once)
 ```bash
-# Jetson 本体（別の端末）: 性能を最大にしてメモリを空ける
+# On the Jetson host (another terminal): max performance + free memory
 ./scripts/perf_mode.sh --free-mem
-# コンテナ内: FP32 と FP16 のエンジンを作る（約 10 分）
-./make_engines.sh                # → engines/yolo11_fp16.engine, yolo11_fp32.engine
+# In the container: build FP32 and FP16 engines (~10 min)
+./make_engines.sh                # -> engines/yolo11_fp16.engine, yolo11_fp32.engine
 ```
 
 ---
 
-## 動かす
+## Usage
 
 ```bash
-# Jetson 本体（再起動のたびに 1 回）
+# On the Jetson host (once after each reboot)
 ./scripts/perf_mode.sh
 
-# コンテナに入る
+# Enter the container
 ./Docker/docker_enter.sh
 
-# コンテナ内
+# In the container
 source install/setup.bash
 PROVIDER=cpu ./launch_px.sh                   # CPU
-PROVIDER=trt ./launch_px.sh                   # GPU: TensorRT FP16（既定）
+PROVIDER=trt ./launch_px.sh                   # GPU: TensorRT FP16 (default)
 PROVIDER=trt TRT_FP16=false ./launch_px.sh    # GPU: TensorRT FP32
 ```
 
-- 止めるときは **Ctrl+C**（Ctrl+Z は使わない。プロセスが残ってカメラを掴んだままになる）
-- PIR が人を検知するまでは待機（WATCH）。検知すると推論・追尾（DETECT）に入る
-- 検出画像は `SeamlessTrack/install/px2/share/px2/data/` に保存される
-- ログに `px2: inference provider = trt` と、1 秒ごとの `px2[timing] ... infer=...ms` が出る
+- Stop with **Ctrl+C**. Do not use Ctrl+Z: the suspended process keeps the camera and serial port open.
+- The system waits (WATCH) until the PIR sensor fires, then switches to detection and tracking (DETECT).
+- Detection images are saved to `SeamlessTrack/install/px2/share/px2/data/`.
+- The log shows `px2: inference provider = trt` and a per-second `px2[timing] ... infer=...ms` line.
 
-| 変数 | 意味 | 既定 |
+| Variable | Meaning | Default |
 |---|---|---|
-| `PROVIDER` | `trt`（TensorRT）/ `cpu`（ONNX Runtime） | `trt` |
-| `TRT_FP16` | `true`=FP16 / `false`=FP32 | `true` |
-| `TRT_ENGINE` | 使うエンジン（空なら `engines/` を自動で使う） | 空 |
-| `SAVE_FRAMES` | 検出画像を保存する | `true` |
-| `TIMING_CSV` | 1 フレームごとの時間を CSV に書く | 空 |
+| `PROVIDER` | `trt` (TensorRT) / `cpu` (ONNX Runtime) | `trt` |
+| `TRT_FP16` | `true` = FP16 / `false` = FP32 | `true` |
+| `TRT_ENGINE` | Engine file to use (empty = pick from `engines/` automatically) | empty |
+| `SAVE_FRAMES` | Save detection images | `true` |
+| `TIMING_CSV` | Write per-frame timings to a CSV file | empty |
 
-PIR を使わずにカメラ・推論・サーボだけ確かめるときは、[docs/WIRING.md](docs/WIRING.md) の「配線の確認手順」を参照。
+To test the camera, inference and servos without the PIR sensor, see "Checking the wiring" in [docs/WIRING.md](docs/WIRING.md).
 
 ---
 
-## 計測
+## Benchmarks
 
 ```bash
-./SeamlessTrack/bench/host_monitor.sh cpu_base                 # Jetson 本体
-TAG=cpu_base ./bench/1_baseline_cpu.sh                          # コンテナ内: CPU の基準値
-TAG=trt_day1 BASELINE=cpu_base ./bench/2_3_trt_compare.sh       # コンテナ内: TensorRT と比較
+./SeamlessTrack/bench/host_monitor.sh cpu_base                 # Jetson host
+TAG=cpu_base ./bench/1_baseline_cpu.sh                          # container: CPU baseline
+TAG=trt_day1 BASELINE=cpu_base ./bench/2_3_trt_compare.sh       # container: compare with TensorRT
 ```
-詳しくは [SeamlessTrack/bench/README.md](SeamlessTrack/bench/README.md)。
+See [SeamlessTrack/bench/README.md](SeamlessTrack/bench/README.md).
 
 ---
 
-## 重いファイル（git に入れない。手元から cp する）
+## Large files
 
-| ファイル | 置き場所 | 大きさ | 作り方 / 入手先 |
+Not tracked by git. Copy them from your local machine.
+
+| File | Location | Size | How to get it |
 |---|---|---|---|
-| `yolo11.onnx` | `SeamlessTrack/src/px2/weights/` | 約 10 MB | **必須**。YOLO11n（出力 `[1,84,8400]`、COCO 80 クラス） |
-| `yolo11_fp16.engine` | `SeamlessTrack/engines/` | 約 8 MB | `./make_engines.sh`（Jetson ごと・TensorRT の版ごとに作り直し） |
-| `yolo11_fp32.engine` | `SeamlessTrack/engines/` | 約 12 MB | 同上 |
-| `onnxruntime-1.14.1-aarch64.tgz` | `Docker/third_party/` | 数 MB | `./scripts/export_ort_from_image.sh`（イメージを作り直すときだけ必要） |
-| `px-jetson_latest.tar.gz` | `~/`（リポジトリの外） | 数 GB | `./scripts/image_backup.sh save`（イメージのバックアップ） |
+| `yolo11.onnx` | `SeamlessTrack/src/px2/weights/` | ~10 MB | **Required.** YOLO11n (output `[1,84,8400]`, 80 COCO classes) |
+| `yolo11_fp16.engine` | `SeamlessTrack/engines/` | ~8 MB | `./make_engines.sh` (rebuild per device and TensorRT version) |
+| `yolo11_fp32.engine` | `SeamlessTrack/engines/` | ~12 MB | Same as above |
+| `onnxruntime-1.14.1-aarch64.tgz` | `Docker/third_party/` | a few MB | `./scripts/export_ort_from_image.sh` (only needed to rebuild the image) |
+| `px-jetson_latest.tar.gz` | `~/` (outside the repo) | a few GB | `./scripts/image_backup.sh save` (image backup) |
 
 ---
 
-## リモート操作
+## Remote access
 
-Tailscale と SSH で、どのネットワークからでも入れる。VNC は SSH トンネル経由。
-手順は [docs/03_commands.md](docs/03_commands.md) の「SSH・Tailscale・VNC」。
+Use Tailscale + SSH to reach the Jetson from any network; VNC goes through an SSH tunnel.
+See the "SSH / Tailscale / VNC" section of [docs/03_commands.md](docs/03_commands.md).
 
 ---
 
 ## CI
 
-| ワークフロー | 内容 |
+| Workflow | What it checks |
 |---|---|
-| `cpp-ci` | clang-format（14）のチェック |
-| `python-lint` | ruff の整形・lint と unit test |
-| `px-parameter-contract` | launch と C++ のパラメータが一致しているか（`max_step_deg` は調整用なので対象外） |
-| `colcon-build` | ROS 2 のビルド。**ONNX Runtime が GitHub から消えているため、手動実行だけ** |
+| `cpp-ci` | clang-format (v14) on `SeamlessTrack/src` |
+| `python-lint` | ruff format / lint and unit tests |
+| `px-parameter-contract` | Launch-file and C++ parameters stay in sync (`max_step_deg` is excluded because it is tuned often) |
+| `colcon-build` | ROS 2 build. **Manual trigger only**, because ONNX Runtime can no longer be downloaded from GitHub |
 
-手元で同じチェック: `./ci_checks/run_local.sh`（`--fix` で整形を自動修正）。uv と clang-format 14 が必要（Mac での実行を想定）。
+Run the same checks locally: `./ci_checks/run_local.sh` (`--fix` applies formatting). Requires uv and clang-format 14 (`pip install clang-format==14.0.6`).
 
 ---
 
-## ドキュメント
+## Documentation
 
-| ファイル | 内容 |
+| File | Contents |
 |---|---|
-| [docs/WIRING.md](docs/WIRING.md) | 配線図と接続表 |
-| [docs/01_conversation_log.md](docs/01_conversation_log.md) | 構築ログ（何をして、何が起きて、どう直したか） |
-| [docs/02_experiment_data.md](docs/02_experiment_data.md) | 環境・計測結果・エラー一覧 |
-| [docs/03_commands.md](docs/03_commands.md) | 用途別のコマンド集 |
-| [PX4.3_archive/README.md](PX4.3_archive/README.md) | 使わなくなったものと戻し方 |
+| [docs/WIRING.md](docs/WIRING.md) | Wiring diagram and pin tables |
+| [docs/01_conversation_log.md](docs/01_conversation_log.md) | Build log: what was done, what went wrong, how it was fixed |
+| [docs/02_experiment_data.md](docs/02_experiment_data.md) | Environment, benchmark results, error list |
+| [docs/03_commands.md](docs/03_commands.md) | Command reference by task |
+| [PX4.3_archive/README.md](PX4.3_archive/README.md) | Files moved out in PX4.4 and how to restore them |
+
+The documents in `docs/` are written in Japanese.

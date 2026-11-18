@@ -1,4 +1,4 @@
-# 03. コマンド集 — SensorFireld-PX4.4（Jetson Orin Nano）
+# 03. コマンド集 — PX4（Jetson Orin Nano）
 
 用途別にまとめたコマンド（2026-11-18、PX4.4 の構成に合わせて更新）。
 **どこで実行するか**を各見出しに書いている：
@@ -9,7 +9,7 @@
 
 ```bash
 # Jetson 上のリポジトリの場所（以降 $REPO）
-REPO=~/SensorFireld-PX4.4
+REPO=~/PX4
 ```
 
 ---
@@ -158,16 +158,16 @@ git に入れていないファイルは、手元から cp / scp する。
 | `onnxruntime-1.14.1-aarch64.tgz` | `Docker/third_party/onnxruntime-1.14.1-aarch64.tgz` |
 
 ```bash
-scp yolo11.onnx ori:~/SensorFireld-PX4.4/SeamlessTrack/src/px2/weights/yolo11.onnx
-scp yolo11_fp16.engine yolo11_fp32.engine ori:~/SensorFireld-PX4.4/SeamlessTrack/engines/
+scp yolo11.onnx ori:~/PX4/SeamlessTrack/src/px2/weights/yolo11.onnx
+scp yolo11_fp16.engine yolo11_fp32.engine ori:~/PX4/SeamlessTrack/engines/
 
 # リポジトリを同期（生成物と重いファイルは送らない）
 rsync -av --exclude build --exclude install --exclude log --exclude trt_cache \
   --exclude '*.engine' --exclude '*.onnx' --exclude results \
-  SensorFireld-PX4.4/ ori:~/SensorFireld-PX4.4/
+  PX4/ ori:~/PX4/
 
 # 結果を持ってくる
-scp -r ori:~/SensorFireld-PX4.4/SeamlessTrack/bench/results ./px_results
+scp -r ori:~/PX4/SeamlessTrack/bench/results ./px_results
 ```
 
 🟩 同じ Jetson の中で古いフォルダからコピーする場合:

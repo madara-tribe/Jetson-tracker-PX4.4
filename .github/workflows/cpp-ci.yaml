@@ -1,0 +1,69 @@
+name: cpp-ci
+
+# PX4.4: SeamlessTrack/src の C/C++ を clang-format（ubuntu-22.04 の 14）でチェック。
+#        手元では ./ci_checks/run_local.sh（pip install clang-format==14.0.6）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "SeamlessTrack/src/**/*.cpp"
+      - "SeamlessTrack/src/**/*.cc"
+      - "SeamlessTrack/src/**/*.cxx"
+      - "SeamlessTrack/src/**/*.h"
+      - "SeamlessTrack/src/**/*.hh"
+      - "SeamlessTrack/src/**/*.hpp"
+      - "SeamlessTrack/src/**/*.hxx"
+      - ".clang-format"
+      - ".github/workflows/cpp-ci.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "SeamlessTrack/src/**/*.cpp"
+      - "SeamlessTrack/src/**/*.cc"
+      - "SeamlessTrack/src/**/*.cxx"
+      - "SeamlessTrack/src/**/*.h"
+      - "SeamlessTrack/src/**/*.hh"
+      - "SeamlessTrack/src/**/*.hpp"
+      - "SeamlessTrack/src/**/*.hxx"
+      - ".clang-format"
+      - ".github/workflows/cpp-ci.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: cpp-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check tracked C and C++ formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(
+            git ls-files SeamlessTrack/src |
+              grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$' || true
+          )
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No tracked C/C++ files found under SeamlessTrack/src."
+            exit 0
+          fi
+
+          printf 'Checking %s C/C++ file(s) with clang-format.\n' "${#files[@]}"
+          clang-format --dry-run --Werror "${files[@]}"

@@ -1,0 +1,45 @@
+# Pattern-C 制御パラメータ
+# 出典: SeamlessTrack/launch_px.sh (実運用値)
+#
+# 実機コードの対応:
+#   control::AxisPdController (axis_pd_controller.hpp)
+#     center_deg / min_deg / max_deg にそのまま対応
+#
+# Pattern-Bとの違い:
+#   Pattern-Bではkp_yaw/kd_yaw/kp_pitch/kd_pitch/max_step_deg/conf_threshold は
+#   px3_system_launch.py のデフォルト値のみで、run.shには明示されていなかった。
+#   Pattern-Cのlaunch_px.shはこれらを全て明示的に上書きしている
+#   （値自体はデフォルトと同一だが、今後どちらかだけ変更されるとズレの
+#   原因になるため、テスト側は実効値＝デフォルト+オーバーライドで判定する）。
+
+meta:
+  source: "SeamlessTrack/launch_px.sh"
+  note: "launch_px.sh の ros2 launch 引数をそのまま転記。実運用時のオーバーライド値。"
+
+axes:
+  yaw:      # PAN, servo_x, px3_servo_node.h の SERVO_X_PIN に対応
+    center_deg: 90.0
+    min_deg: 30.0
+    max_deg: 150.0
+    mujoco_joint_name: "yaw"
+
+  pitch:    # TILT, servo_y, px3_servo_node.h の SERVO_Y_PIN に対応
+    center_deg: 90.0
+    min_deg: 50.0
+    max_deg: 130.0
+    mujoco_joint_name: "pitch"
+
+future_params:
+  dead_zone_deg:
+    yaw: 2.0      # kYawDeadZoneDeg (inference.h)
+    pitch: 2.0    # kPitchDeadZoneDeg (inference.h)
+  lost_max_frames: 30          # launch_px.sh実運用値
+  conf_threshold: 0.25         # YOLO11 confidence閾値（launch_px.shで明示）
+  watch_fps: 2.0               # launch_px.sh実運用値
+  active_fps: 30.0
+  max_step_deg: 3.0            # レート制限（launch_px.shで明示）
+  pd_gains:
+    kp_yaw: 0.3
+    kd_yaw: 0.2
+    kp_pitch: 0.3
+    kd_pitch: 0.2

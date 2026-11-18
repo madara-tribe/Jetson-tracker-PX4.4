@@ -1,0 +1,62 @@
+# ============================================================
+#  Dockerfile.jetson.gpu
+#  px-jetson:latest (CPU 版) の ONNX Runtime を、
+#  CUDA + TensorRT 対応版に入れ替えたイメージ px-jetson:gpu を作る。
+#
+#  - ONNX Runtime 1.20.1 を Jetson 上でソースからビルド
+#    （JetPack 6 の CUDA 12.6 / TensorRT 10.3 に対応する版。1.14 は TensorRT 10 非対応）
+#  - Orin (sm_87) 向けだけをビルドして時間を短縮
+#  - ビルドは 1.5〜3 時間かかる。メモリ不足対策でスワップを足しておくこと
+#
+#  使い方:  make jetson        (先に CPU 版を作る)
+#           make jetson-gpu
+# ============================================================
+ARG BASE_IMAGE=nvcr.io/nvidia/l4t-jetpack:r36.4.0
+ARG PX_IMAGE=px-jetson:latest
+
+# ---------- stage 1: ONNX Runtime を GPU 対応でビルド ----------
+FROM ${BASE_IMAGE} AS ortbuild
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential git python3 python3-pip python3-dev ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir "cmake>=3.28,<3.31" numpy packaging
+
+ARG ORT_VERSION=1.20.1
+ARG BUILD_JOBS=3
+# git clone ではなく、リリースのソース一式（tar.gz）を取得する
+#   （git clone は環境によって認証を求められて失敗するため。依存ライブラリは
+#    ビルド中に CMake が自動でダウンロードする）
+ENV GIT_TERMINAL_PROMPT=0
+RUN mkdir -p /opt/onnxruntime \
+    && wget -q -O /tmp/ort-src.tar.gz \
+         https://github.com/microsoft/onnxruntime/archive/refs/tags/v${ORT_VERSION}.tar.gz \
+    && tar xzf /tmp/ort-src.tar.gz -C /opt/onnxruntime --strip-components=1 \
+    && rm /tmp/ort-src.tar.gz \
+    && cat /opt/onnxruntime/VERSION_NUMBER
+WORKDIR /opt/onnxruntime
+RUN ./build.sh --config Release --update --build --parallel ${BUILD_JOBS} --nvcc_threads 1 \
+        --skip_submodule_sync \
+        --build_shared_lib --skip_tests --allow_running_as_root \
+        --use_cuda --cuda_home /usr/local/cuda --cudnn_home /usr \
+        --use_tensorrt --tensorrt_home /usr \
+        --cmake_extra_defines CMAKE_CUDA_ARCHITECTURES=87 \
+                              onnxruntime_BUILD_UNIT_TESTS=OFF \
+                              CMAKE_INSTALL_PREFIX=/opt/ort \
+    && cd build/Linux/Release && make install \
+    && find /opt/ort -name 'libonnxruntime*' 
+
+# ---------- stage 2: PX イメージの ORT を入れ替え ----------
+FROM ${PX_IMAGE}
+USER root
+COPY --from=ortbuild /opt/ort/ /opt/ort/
+RUN rm -f /usr/local/lib/libonnxruntime* \
+    && rm -rf /usr/local/include/onnxruntime \
+    && find /opt/ort -name 'libonnxruntime*.so*' -exec cp -P {} /usr/local/lib/ \; \
+    && HDR=$(dirname "$(find /opt/ort/include -name onnxruntime_cxx_api.h | head -1)") \
+    && mkdir -p /usr/local/include/onnxruntime/core/session \
+    && cp -r "$HDR"/* /usr/local/include/onnxruntime/core/session/ \
+    && ldconfig \
+    && rm -rf /opt/ort \
+    && ls -l /usr/local/lib/libonnxruntime*
+USER developer

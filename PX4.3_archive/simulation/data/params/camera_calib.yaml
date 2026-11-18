@@ -1,0 +1,50 @@
+# カメラ校正パラメータ（Pattern-C: IRカメラ）
+#
+# !!! 重要な注意 !!!
+# この値は SeamlessTrack/src/px2/weights/calib_result.yaml から転記したものだが、
+# 中身を確認したところ Pattern-B (RGB / Logicool BRIO) のキャリブレーション結果
+# (calibration_date=2025-11-10, 同じ captures/img_*.png 群) と完全に一致していた。
+# つまり ELP-USBFHD05MT-KL36IR (IRカメラ) 側でのキャリブレーションが
+# まだ行われておらず、BRIOの値が暫定的に転用されている可能性が高い。
+#
+# 加えて、launch_px.sh は active_width:=1920 / active_height:=1080 で
+# カメラを起動しているが、このcalib_result.yamlの image_width/height は
+# 1280x720 であり、解像度が一致していない
+# (この不一致はPattern-B側のrun.shでも同様に存在するため、Pattern-C固有の
+#  新しい問題ではなく、両ブランチに共通する既存の課題)。
+#
+# 対応:
+#   - optics.py のpixel->angle変換は、この camera_matrix(fx, fy, cx, cy) を
+#     使って計算されるため、実際のIRカメラ・実際の動作解像度で
+#     再キャリブレーションするまでは、Level3のテスト結果は
+#     「参考値」として扱うこと。
+#   - 本CIのcontractチェック(param-contract)は、この解像度不一致自体は
+#     検知しない(camera_calib.yamlはcontrol_params.yamlの契約対象外のため)。
+#     必要であれば別途 `active_width/active_height` vs
+#     `camera_calib.image_width/image_height` の整合性チェックを追加できる。
+
+camera_matrix:
+  # fx, fy: 焦点距離(pixel単位)  cx, cy: 主点(pixel単位)
+  # ※ 上記の通りBRIOのキャリブレーション値を暫定転用中
+  fx: 1298.6471780244358
+  fy: 1303.0902412491205
+  cx: 607.39380383778496
+  cy: 368.00217737818696
+
+dist_coeffs:
+  # k1, k2, p1, p2, k3 (OpenCV標準の5パラメータ歪みモデル)
+  k1: 0.078757549992708745
+  k2: 0.23741071566752794
+  p1: 0.0016892252317601264
+  p2: -0.0023305220327422649
+  k3: -1.7273419737082796
+
+image_width: 1280
+image_height: 720
+
+meta:
+  source: "calib_result.yaml (Pattern-Cリポジトリ内のもの。ただし中身はPattern-B/BRIOのキャリブレーション結果と同一)"
+  calibration_date: "2025-11-10"
+  rms_reprojection_error_px: 0.2736326752265828
+  num_images_used: 20
+  status: "PROVISIONAL — IRカメラでの再キャリブレーション未実施"

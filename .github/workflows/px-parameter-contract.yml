@@ -1,0 +1,117 @@
+name: PX Parameter Contract Checks
+
+# PX4.4: launch ファイルと C++ の declare_parameter が一致しているかをチェック。
+#        max_step_deg は調整で頻繁に変えるため、既定値の差を許可（チェック対象外）。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - "main"
+    paths:
+      - "SeamlessTrack/src/px2/**"
+      - "SeamlessTrack/src/px3/**"
+      - "SeamlessTrack/src/px3_launch/**"
+      - "ci_checks/check_px_parameter_contract.py"
+      - "ci_checks/tests/test_check_px_parameter_contract.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/px-parameter-contract.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: px-parameter-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  px-parameter-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (uv.lock通り)
+        run: uv sync --locked
+
+      - name: Test the checker
+        run: uv run python -m unittest discover -s ci_checks/tests -p "test_*.py" -v
+
+      - name: Run PX parameter contract check
+        id: contract
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          uv run python ci_checks/check_px_parameter_contract.py \
+            --repo-root . \
+            --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg" \
+            --allow-default-override px2.device_path \
+            --allow-default-override px2.max_step_deg \
+            --report /tmp/px-parameter-contract-report.md
+          status=$?
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Publish run summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/px-parameter-contract-report.md ]; then
+            cat /tmp/px-parameter-contract-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## PX Parameter Contract Check" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No report was generated; inspect preceding workflow logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: px-parameter-contract-report
+          path: /tmp/px-parameter-contract-report.md
+          if-no-files-found: warn
+
+      - name: Upsert PR comment
+        if: >-
+          always() &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        env:
+          REPORT_PATH: /tmp/px-parameter-contract-report.md
+          CHECK_OUTCOME: ${{ steps.contract.outcome }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- px-parameter-contract:bot -->';
+            const report = fs.existsSync(process.env.REPORT_PATH)
+              ? fs.readFileSync(process.env.REPORT_PATH, 'utf8')
+              : '## PX Parameter Contract Check\n\nNo report was generated; inspect workflow logs.';
+            const outcome = process.env.CHECK_OUTCOME === 'success' ? '✅ passed' : '❌ failed';
+            const body = `${marker}\n${report}\n<sub>Workflow result: ${outcome}. Updated on each push.</sub>`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100
+            });
+            const existing = comments.find(comment => comment.body && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Fail when parameter contract is inconsistent
+        if: steps.contract.outcome != 'success'
+        run: exit 1

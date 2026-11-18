@@ -1,0 +1,128 @@
+name: colcon-build
+
+# NOTE (PX4.4, 2026-11-18):
+#   microsoft/onnxruntime が GitHub から消えており、下の「Install ONNX Runtime C++ SDK」の
+#   ダウンロードが 404 で失敗する。そのため push / pull_request での自動実行を止め、
+#   手動実行（Actions タブ → Run workflow）だけにしている。
+#   ONNX Runtime が再び入手できるようになったら、下の on: に push / pull_request を戻す。
+#   （TensorRT は CI に無いので、px2 の provider "trt" は自動で無効になってビルドされる）
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: colcon-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  WORKSPACE_DIR: "SeamlessTrack"
+  ONNXRUNTIME_VERSION: "1.14.1"
+
+jobs:
+  colcon-build:
+    name: colcon-build
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:humble-ros-base-jammy
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        shell: bash
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential \
+            ca-certificates \
+            curl \
+            gzip \
+            libopencv-dev \
+            tar \
+            python3-colcon-common-extensions \
+            python3-rosdep
+
+      - name: Install ONNX Runtime C++ SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+          sdk_dir="/tmp/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}"
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${archive}"
+
+          curl -L --fail --retry 3 --retry-delay 5 \
+            -o "/tmp/${archive}" \
+            "${url}"
+
+          tar -xzf "/tmp/${archive}" -C /tmp
+
+          # Install ONNX Runtime libraries.
+          cp -r "${sdk_dir}/lib/"* /usr/local/lib/
+
+          # Install headers in both common layouts:
+          #   1) /usr/local/include/onnxruntime_cxx_api.h
+          #   2) /usr/local/include/onnxruntime/core/session/onnxruntime_cxx_api.h
+          mkdir -p /usr/local/include
+          cp -r "${sdk_dir}/include/"* /usr/local/include/
+
+          mkdir -p /usr/local/include/onnxruntime/core/session
+          if [ -f "${sdk_dir}/include/onnxruntime_cxx_api.h" ]; then
+            cp "${sdk_dir}/include/"*.h /usr/local/include/onnxruntime/core/session/
+          elif [ -f "${sdk_dir}/include/onnxruntime/core/session/onnxruntime_cxx_api.h" ]; then
+            cp -r "${sdk_dir}/include/onnxruntime" /usr/local/include/
+          else
+            echo "ONNX Runtime C++ header was not found in downloaded SDK."
+            find "${sdk_dir}/include" -maxdepth 5 -type f | sort
+            exit 1
+          fi
+
+          ldconfig
+
+          test -f /usr/local/include/onnxruntime/core/session/onnxruntime_cxx_api.h
+          test -f /usr/local/lib/libonnxruntime.so
+
+      - name: Verify ONNX Runtime install
+        shell: bash
+        run: |
+          set -euo pipefail
+          find /usr/local/include -name 'onnxruntime_cxx_api.h' -print
+          find /usr/local/include -name 'onnxruntime_c_api.h' -print
+          find /usr/local/lib -name 'libonnxruntime*' -print
+          ldconfig -p | grep onnxruntime || true
+
+      - name: Install package dependencies
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          cd "${WORKSPACE_DIR}"
+
+          rosdep init 2>/dev/null || true
+          rosdep update
+          rosdep install \
+            --from-paths src \
+            --ignore-src \
+            --rosdistro humble \
+            -r -y
+
+      - name: Build ROS2 workspace
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          cd "${WORKSPACE_DIR}"
+          colcon build \
+            --symlink-install \
+            --event-handlers console_direct+
+
+      - name: Test ROS2 workspace
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          cd "${WORKSPACE_DIR}"
+          source install/setup.bash
+          colcon test \
+            --event-handlers console_direct+
+          colcon test-result --verbose

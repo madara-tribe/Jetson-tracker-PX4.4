@@ -1,0 +1,130 @@
+name: sim-hil
+
+on:
+  push:
+    branches: [night/pattern-C]
+    paths:
+      - "SeamlessTrack/src/px2/include/control/**"
+      - "SeamlessTrack/src/px2/src/inference.cpp"
+      - "SeamlessTrack/src/px2/include/inference.h"
+      - "SeamlessTrack/src/px3/include/px3/**"
+      - "SeamlessTrack/src/px3_launch/**"
+      - "SeamlessTrack/launch_px.sh"
+      - "simulation/**"
+      - "ci_checks/tests/test_sim_hil_param_contract.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/sim-hil.yaml"
+  pull_request:
+    branches: [night/pattern-C]
+    paths:
+      - "SeamlessTrack/src/px2/include/control/**"
+      - "SeamlessTrack/src/px2/src/inference.cpp"
+      - "SeamlessTrack/src/px2/include/inference.h"
+      - "SeamlessTrack/src/px3/include/px3/**"
+      - "SeamlessTrack/src/px3_launch/**"
+      - "SeamlessTrack/launch_px.sh"
+      - "simulation/**"
+      - "ci_checks/tests/test_sim_hil_param_contract.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/sim-hil.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: sim-hil-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # ① パラメータ契約チェック
+  #    control_params.yaml が launch_px.sh / launchデフォルト / inference.h の
+  #    定数からズレていないかを確認する。
+  #    (Pattern-Bのrun.shとファイル名が異なるが、テストコード側で自動検出する)
+  #
+  #    pyyaml は pyproject.toml の [project.dependencies] に登録済み。
+  #    `uv sync` だけでローカルの `uv run` と全く同じ環境を再現する。
+  # -------------------------------------------------------------------------
+  param-contract:
+    name: param-contract
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (uv.lock通り)
+        shell: bash
+        run: uv sync --locked
+
+      - name: Run parameter contract check
+        shell: bash
+        run: uv run python -m unittest ci_checks.tests.test_sim_hil_param_contract -v
+
+  # -------------------------------------------------------------------------
+  # ② Level 3 — トラッキング応答検証（オーバーシュート・整定時間・clamp）
+  #
+  #    mujoco等は pyproject.toml の [dependency-groups.simulation] に登録済み。
+  #    simulation/requirements.txt は使わず、uv.lock を正として同期する。
+  # -------------------------------------------------------------------------
+  level3-tracking:
+    name: level3-tracking
+    runs-on: ubuntu-22.04
+    needs: param-contract
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (simulationグループ込み)
+        shell: bash
+        run: uv sync --locked --group simulation
+
+      - name: Run Level 3 tracking tests
+        shell: bash
+        working-directory: simulation
+        run: uv run --project .. python scripts/v3/run_level3_tracking_tests.py
+
+      - name: Upload Level 3 plot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: level3-tracking-plot
+          path: simulation/outputs/level3_tracking_tests.png
+          if-no-files-found: warn
+
+  # -------------------------------------------------------------------------
+  # ③ Level 4 — TrackingModeFSM（WATCH/DETECT遷移、dt=0スキップ、ロスト復帰）
+  # -------------------------------------------------------------------------
+  level4-fsm:
+    name: level4-fsm
+    runs-on: ubuntu-22.04
+    needs: param-contract
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (simulationグループ込み)
+        shell: bash
+        run: uv sync --locked --group simulation
+
+      - name: Run Level 4 FSM tests
+        shell: bash
+        working-directory: simulation
+        run: uv run --project .. python scripts/v4/run_level4_fsm_tests.py

@@ -1,0 +1,74 @@
+name: python-lint
+
+# PX4.4: ruff（整形・lint）と ci_checks の unit test。対象: calibration, ci_checks,
+#        SeamlessTrack/src/px3_launch, SeamlessTrack/bench（存在するものだけ）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "calibration/**/*.py"
+      - "ci_checks/**/*.py"
+      - "SeamlessTrack/src/px3_launch/**/*.py"
+      - "SeamlessTrack/bench/**/*.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/python-lint.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "calibration/**/*.py"
+      - "ci_checks/**/*.py"
+      - "SeamlessTrack/src/px3_launch/**/*.py"
+      - "SeamlessTrack/bench/**/*.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/python-lint.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: python-lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ruff-and-unit-tests:
+    name: ruff-and-unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install locked dependencies
+        run: uv sync --frozen
+
+      - name: Collect Python directories
+        id: dirs
+        shell: bash
+        run: |
+          dirs=""
+          for d in calibration ci_checks SeamlessTrack/src/px3_launch SeamlessTrack/bench; do
+            if [ -d "$d" ]; then dirs="$dirs $d"; fi
+          done
+          echo "list=${dirs}" >> "$GITHUB_OUTPUT"
+          echo "Python dirs:${dirs}"
+
+      - name: Ruff format check
+        run: uv run ruff format --check ${{ steps.dirs.outputs.list }}
+
+      - name: Ruff lint
+        run: uv run ruff check ${{ steps.dirs.outputs.list }}
+
+      - name: Parameter checker unit tests
+        run: |
+          uv run python -m unittest discover -s ci_checks/tests -p "test_*.py" -v

@@ -1,0 +1,14 @@
+== fp32 ==
+Throughput: 116.645 qps
+Latency: min = 8.10156 ms, max = 10.0547 ms, mean = 9.11666 ms, median = 9.35254 ms, percentile(90%) = 9.85083 ms, percentile(95%) = 9.9292 ms, percentile(99%) = 10.002 ms
+H2D Latency: min = 0.18457 ms, max = 0.414917 ms, mean = 0.379045 ms, median = 0.388672 ms, percentile(90%) = 0.39502 ms, percentile(95%) = 0.398926 ms, percentile(99%) = 0.405273 ms
+GPU Compute Time: min = 7.71094 ms, max = 9.49414 ms, mean = 8.56473 ms, median = 8.78564 ms, percentile(90%) = 9.32153 ms, percentile(95%) = 9.38672 ms, percentile(99%) = 9.44092 ms
+D2H Latency: min = 0.103516 ms, max = 0.189453 ms, mean = 0.172876 ms, median = 0.172363 ms, percentile(90%) = 0.177734 ms, percentile(95%) = 0.181152 ms, percentile(99%) = 0.185059 ms
+
+== fp16 ==
+Throughput: 194.706 qps
+Latency: min = 4.8877 ms, max = 6.8584 ms, mean = 5.64029 ms, median = 5.60168 ms, percentile(90%) = 6.29761 ms, percentile(95%) = 6.34668 ms, percentile(99%) = 6.74609 ms
+H2D Latency: min = 0.183105 ms, max = 0.320312 ms, mean = 0.289683 ms, median = 0.293152 ms, percentile(90%) = 0.29895 ms, percentile(95%) = 0.302734 ms, percentile(99%) = 0.309082 ms
+GPU Compute Time: min = 4.57617 ms, max = 6.34961 ms, mean = 5.1321 ms, median = 5.0907 ms, percentile(90%) = 5.78418 ms, percentile(95%) = 5.83142 ms, percentile(99%) = 6.23438 ms
+D2H Latency: min = 0.104492 ms, max = 0.233398 ms, mean = 0.21852 ms, median = 0.21875 ms, percentile(90%) = 0.222656 ms, percentile(95%) = 0.225586 ms, percentile(99%) = 0.230469 ms
+

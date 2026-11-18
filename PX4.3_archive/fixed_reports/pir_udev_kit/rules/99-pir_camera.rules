@@ -1,0 +1,11 @@
+# PX System - Night/Pattern-C PIR Camera udev rule
+# Device: HD USB Camera (32e4:9230)
+#
+# This device exposes two /dev/videoX nodes from a single UVC interface:
+#   ATTR{index}=="0" -> capture node (MJPG/YUYV, usable)
+#   ATTR{index}=="1" -> metadata-only node (no formats, cannot be opened)
+# idVendor/idProduct/serial are identical between the two nodes, so ATTR{index}
+# is the only attribute that distinguishes them. This rule binds the symlink
+# only to the capture node (index 0).
+
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="32e4", ATTRS{idProduct}=="9230", ATTR{index}=="0", SYMLINK+="video/pir_camera", MODE="0666"

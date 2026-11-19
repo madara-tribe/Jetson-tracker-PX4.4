@@ -57,22 +57,50 @@ struct AxisPdController {
     prev_err_deg = 0.0;
   }
 
-  // updateFromErrorRad()の「誤差計算(副作用なし)」と「状態コミット(副作用あり)」を分離
+  // 今のサーボ角（絶対角）から再開する。再検出のたびに中央へ戻らないようにするため。
+  void resetAtServoDeg(double servo_deg) {
+    pos_deg = std::clamp(servo_deg, min_deg, max_deg) - center_deg;
+    prev_err_deg = 0.0;
+  }
+
+  // 今の指令角（絶対角）。commit() の戻り値と同じ値。
+  double servoDeg() const {
+    return std::clamp(center_deg + pos_deg, min_deg, max_deg);
+  }
+
   double errorDeg(double err_rad) const {
     return err_rad * 180.0 / PX_PI;
   }
 
-  // dead zone外と判定した時だけ呼ぶ。pos_deg/prev_err_degを実際に進める。
-  double commit(double err_deg, double dt = 1.0) {
-    const double d_term = (dt > 0.0) ? Kd * (err_deg - prev_err_deg) / dt : 0.0;
+  // 死帯の中で動かさなかったフレームでも、誤差だけは覚えておく。
+  // （覚えないと、死帯を出た最初のフレームで「古い誤差との差」が D 項に入って跳ねる）
+  void observe(double err_deg) {
+    prev_err_deg = err_deg;
+  }
+
+  // 死帯の外と判定したときだけ呼ぶ。pos_deg / prev_err_deg を進める。
+  //   delta = Kp * err + Kd * (err - 前フレームの err)
+  //
+  // この制御は「位置に足していく」形なので、位置で見ると次のように効く。
+  //   Kp : 実質的に積分のゲイン。サーボが動き終わるまで同じ誤差を毎フレーム足すので、
+  //        遅延が長いほど行き過ぎる。上げる前に遅延を測ること
+  //        （目安: 遅延 100 ms 以下なら 0.4 まで、165 ms を超えるなら 0.2。モデルでの見積もり）
+  //   Kd : 実質的に比例のゲイン。0〜0.6 の範囲では追従誤差への影響は小さい
+  //
+  // Kd は「1 フレームあたりの誤差の変化」に掛ける（dt では割らない）。
+  //   以前は dt で割っていたため、30 Hz では Kd=0.2 が実質 6.0 になり、
+  //   ループが速いほど強くなっていた。
+  // use_d=false: D 項を使わない（DETECT に入った最初のフレーム用）。
+  double commit(double err_deg, bool use_d = true) {
+    const double d_term = use_d ? Kd * (err_deg - prev_err_deg) : 0.0;
 
     double delta_deg = Kp * err_deg + d_term;
     delta_deg = std::clamp(delta_deg, -max_step_deg, max_step_deg);
 
-    pos_deg += delta_deg; // ← dead zone内では呼ばれない = 実送信角度と一致し続ける
+    // 可動範囲の端で pos_deg だけが増え続けないよう、範囲内に収める（ワインドアップ防止）
+    pos_deg = std::clamp(pos_deg + delta_deg, min_deg - center_deg, max_deg - center_deg);
     prev_err_deg = err_deg;
-    const double servo = center_deg + pos_deg;
-    return std::clamp(servo, min_deg, max_deg);
+    return center_deg + pos_deg;
   }
 };
 

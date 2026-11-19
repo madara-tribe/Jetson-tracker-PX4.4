@@ -67,7 +67,8 @@ public:
   bool lastTrtBreakdown(double& h2d_ms, double& gpu_ms, double& d2h_ms) const;
   ~YoloDetect(); // session (Ort::Session*) の解放
   cv::Mat drawBoundingBox(cv::Mat& image, std::vector<Result>& resultVector);
-  cv::Mat preprocess(cv::Mat& image, int model_input_width, int model_input_height);
+  // image（BGR）は書き換えない。呼び出し側で同じフレームを保存・描画に使える。
+  cv::Mat preprocess(const cv::Mat& image, int model_input_width, int model_input_height);
   std::vector<Result> postprocess(cv::Size originalImageSize,
                                   std::vector<Ort::Value>& outputTensors);
   std::vector<Ort::Value> RunInference(cv::Mat& inputImage);

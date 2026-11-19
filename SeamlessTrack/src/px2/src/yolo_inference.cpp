@@ -51,13 +51,15 @@ YoloDetect::YoloDetect(const std::string& modelPath, float conf_threshold,
       warmup();
       return;
     } catch (const std::exception& e) {
-      std::cerr << "[yolo] native TensorRT failed: " << e.what()
-                << " -> falling back to ONNX Runtime CPU" << std::endl;
+      std::cerr << "[yolo] WARNING: native TensorRT failed: " << e.what()
+                << " -> falling back to ONNX Runtime CPU (much slower)" << std::endl;
       trt_.reset();
     }
 #else
-    std::cerr << "[yolo] px2 was built without TensorRT -> falling back to ONNX Runtime CPU"
-              << std::endl;
+    std::cerr
+        << "[yolo] WARNING: px2 was built without TensorRT -> falling back to ONNX Runtime CPU"
+           " (much slower)"
+        << std::endl;
 #endif
   }
 
@@ -253,9 +255,8 @@ std::vector<Result> YoloDetect::postprocess(cv::Size originalImageSize,
   std::vector<Result> resultVector;
   for (int idx : indices) {
     const cv::Rect& b = boxes[idx];
-    // 採用した検出のaccuracyを出力する（しきい値チューニング用）
-    std::cout << "[yolo] accepted detection accuracy=" << confidences[idx]
-              << " (threshold=" << conf_threshold_ << ")" << std::endl;
+    // 検出ごとの標準出力はやめた（毎フレーム出て遅延の原因になる）。
+    // 信頼度は Result::accuracy に入り、px2 の timing CSV の best_conf 列で確認できる。
     resultVector.emplace_back(b.x, b.x + b.width, b.y, b.y + b.height, class_ids[idx],
                               confidences[idx]);
   }
@@ -269,10 +270,11 @@ float YoloDetect::unpadCoord(float v, int pad, int model_size_after_padding, int
   return ((v - pad) / static_cast<float>(model_size_after_padding)) * original_size;
 }
 
-cv::Mat YoloDetect::preprocess(cv::Mat& image, int model_input_width, int model_input_height) {
+cv::Mat YoloDetect::preprocess(const cv::Mat& bgr, int model_input_width, int model_input_height) {
 
-  // Channels order: BGR to RGB
-  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+  // Channels order: BGR to RGB（元のフレームは書き換えず、別の Mat に変換する）
+  cv::Mat image;
+  cv::cvtColor(bgr, image, cv::COLOR_BGR2RGB);
 
   // Calculate the scaling factor for resizing without distortion
   double scale;

@@ -230,8 +230,19 @@ PROVIDER=trt TRT_FP16=false ./launch_px.sh     # TensorRT FP32
 | `PROVIDER` | `trt` / `cpu` | `trt` |
 | `TRT_FP16` | `true`=FP16 / `false`=FP32 | `true` |
 | `TRT_ENGINE` | 使う .engine（空なら `engines/yolo11_fp16.engine` か `fp32` を自動で使う） | 空 |
-| `SAVE_FRAMES` | 検出画像を `install/px2/share/px2/data/` に保存 | `true` |
-| `TIMING_CSV` | 1 フレームごとの時間を CSV に | 空 |
+| `SAVE_FRAMES` | 検出したフレームを `frames/`（`SAVE_DIR`）に PNG で保存する（1 フレーム 1 枚。ループが遅くなる） | `false` |
+| `TIMING_CSV` | 1 フレームごとの時間・誤差・指令角を CSV に書く | 空 |
+| `KP` / `KD` | PD ゲイン（両軸共通）。`KP` は実質的に積分、`KD` は実質的に比例として効く。`KP` を上げる前に遅延を測ること | `0.3` / `0.3` |
+| `MAX_STEP` | 1 フレームで動かす最大量（度） | `3.0` |
+| `DEAD_ZONE` | 死帯（度）。指令が整数のうちは 1.0 未満にしない | `1.0` |
+| `LOST_TIMEOUT` | 見失ってから WATCH に戻るまでの時間（秒） | `1.0` |
+| `ACTIVE_W` / `ACTIVE_H` / `ACTIVE_FPS` | カメラの取り込み | `1920` / `1080` / `30.0` |
+| `CAP_BUFFER` | カメラ側に溜めるフレーム数（0 = 指定しない）。fps が半分になるカメラでは 2 | `1` |
+| `LATEST_FRAME` | `true` = 別スレッドでカメラを読み続け、最新の 1 枚だけを使う | `true` |
+| `SAVE_DIR` | 検出画像の保存先 | `SeamlessTrack/frames` |
+| `MODEL_PATH` / `CALIB_PATH` | モデルと校正ファイル（空なら `install/px2/share/px2/weights/`） | 空 |
+| `SERVO_LAG_MS` | サーボが指令に追いつくまでの遅れ（ms）。CSV の `servo_at_capture_*` に使う | `0.0` |
+| `REWAKE_DELAY_MS` | WATCH に戻ってから、PIR が HIGH のままでも再起動しない時間（ms） | `1000` |
 
 ### PIR を使わずに確認（別の端末から）
 ```bash
@@ -239,7 +250,7 @@ PROVIDER=trt TRT_FP16=false ./launch_px.sh     # TensorRT FP32
 docker exec -it $(docker ps -q --filter ancestor=px-jetson:latest | head -1) bash
 # 🐳（入った先）
 source /opt/ros/humble/setup.bash && source /ros2_ws/work/install/setup.bash
-ros2 topic echo /pir/state                         # 手を振って data: true が出れば PIR は正常
+ros2 topic echo /pir/state                         # 200 ms ごとに今の値が出る。手を振って true に変われば PIR は正常
 ros2 topic pub --once --qos-durability transient_local --qos-reliability reliable \
   /px_wakeup std_msgs/msg/Bool "{data: true}"      # DETECT に強制的に入れる
 ```
@@ -324,6 +335,9 @@ pip install clang-format==14.0.6     # CI（ubuntu-22.04）と同じ版
 | colcon の symlink エラー | 🐳 `rm -rf build install log && ./build_px.sh` |
 | カメラが使用中 | 🐳 `./kill_camera_users.sh` |
 | 起動しても何も起きない | PIR が反応していない → 8 章の「PIR を使わずに確認」、配線は docs/WIRING.md |
+| 起動してもサーボが中央に動かない | px2 の初期化（カメラ、モデル、エンジン）で失敗すると px3 が作られない → px2 の起動ログで `Failed to open camera`、`model not found`、`[trt]` のエラーを探す。px3 の起動（4 秒待ち）はエンジンを読み終わったあとに始まる |
+| ループが約 15 Hz しか出ない（`loop_ms` が約 66 ms） | カメラがバッファ 1 枚で 1 フレームおきになっている → `CAP_BUFFER=2 ./launch_px.sh` と比べる |
+| `model not found` / `Calibration not loaded` | `./build_px.sh` をやり直す（`install/px2/share/px2/weights/` に置かれる）。または `MODEL_PATH=...` `CALIB_PATH=...` で場所を指定 |
 | `Skipping tactic ... insufficient memory` | 🟩 `./scripts/perf_mode.sh --free-mem` → 🐳 `./make_engines.sh` |
 | TensorRT が使えず CPU に落ちる | 🟩 `docker info \| grep -i runtime`（nvidia）、🐳 ビルドログの `px2: TensorRT enabled` |
 | `make` で ONNX Runtime のダウンロードが 404 | 🟩 `./scripts/export_ort_from_image.sh` を先に実行 |

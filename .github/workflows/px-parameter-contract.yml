@@ -1,7 +1,7 @@
 name: PX Parameter Contract Checks
 
 # PX4.4: launch ファイルと C++ の declare_parameter が一致しているかをチェック。
-#        max_step_deg は調整で頻繁に変えるため、既定値の差を許可（チェック対象外）。
+#        px3 のパラメータは px2 経由で渡す（serial_port, baudrate, x/y_center_deg, pir_pin）。
 
 on:
   pull_request:
@@ -53,9 +53,8 @@ jobs:
           set +e
           uv run python ci_checks/check_px_parameter_contract.py \
             --repo-root . \
-            --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg" \
+            --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg,pir_pin" \
             --allow-default-override px2.device_path \
-            --allow-default-override px2.max_step_deg \
             --report /tmp/px-parameter-contract-report.md
           status=$?
           echo "exit_code=${status}" >> "$GITHUB_OUTPUT"

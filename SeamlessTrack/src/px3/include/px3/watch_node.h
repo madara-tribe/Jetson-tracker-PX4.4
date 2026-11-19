@@ -4,11 +4,15 @@
 //  watch_node.h  — WatchNode
 //
 //  /pir/state (from px3) を subscribe し、
-//  PIR 検知時に /px_wakeup=true を px2 へ publish する仲介ノード。
+//  PIR が HIGH のとき /px_wakeup=true を px2 へ publish する仲介ノード。
 //  シリアル / Telemetrix 処理は持たない。
 //
+//  /pir/state は「今 HIGH かどうか」で、px3 が 200 ms ごとに送り直す。
+//  立ち上がり（LOW→HIGH の瞬間）ではなく今の値で判定するので、
+//  1 回取りこぼしても次の受信で起動できる。
+//
 //  Subscribe:
-//    /pir/state   std_msgs/Bool  (from px3)
+//    /pir/state   std_msgs/Bool  transient_local (from px3、今の値)
 //    /px3_ready   std_msgs/Bool  transient_local (from px3)
 //    /px_wakeup   std_msgs/Bool  transient_local (from px2, false のみ使用)
 //
@@ -42,6 +46,10 @@ private:
   // wakeup publish ヘルパー
   void publish_wakeup(bool on);
 
+  // 条件がそろっていれば /px_wakeup=true を送る。
+  // 条件: PIR が HIGH、px3 が準備済み、まだ送っていない、デバウンスと再起動待ちを過ぎている
+  void try_wakeup();
+
 private:
   // ---- Subscribers ----
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr pir_sub_;
@@ -54,11 +62,16 @@ private:
   // ---- State ----
   std::atomic<bool> px3_ready_{false};
   std::atomic<bool> wakeup_sent_{false}; // 二重送信防止
+  std::atomic<bool> pir_level_{false}; // PIR の今の値（最後に受け取った /pir/state）
 
   // ---- Params ----
   int pir_debounce_ms_{200}; // 連続 PIR 検知に対するデバウンス (ms)
   // {} 初期化により初回 PIR 検知は必ずデバウンスをpassする（意図的）
   std::chrono::steady_clock::time_point last_wakeup_t_{};
+  // px2 が WATCH に戻ってから、この時間は再起動しない (ms)。
+  // 人がいないのに PIR が HIGH のままのとき、WATCH と DETECT を細かく往復するのを防ぐ
+  int rewake_delay_ms_{1000};
+  std::chrono::steady_clock::time_point watch_resumed_t_{};
 };
 
 } // namespace px_watch

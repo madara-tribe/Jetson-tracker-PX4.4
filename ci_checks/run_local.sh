@@ -26,8 +26,7 @@ echo "== unit tests";                uv run python -m unittest discover -s ci_ch
 echo "== px-parameter-contract"
 uv run python ci_checks/check_px_parameter_contract.py \
   --repo-root . \
-  --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg" \
+  --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg,pir_pin" \
   --allow-default-override px2.device_path \
-  --allow-default-override px2.max_step_deg \
   --report /tmp/px-parameter-contract-report.md
 echo "ALL CHECKS PASSED"

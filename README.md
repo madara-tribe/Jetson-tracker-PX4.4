@@ -109,7 +109,7 @@ PROVIDER=trt TRT_FP16=false ./launch_px.sh    # GPU: TensorRT FP32
 
 - Stop with **Ctrl+C**. Do not use Ctrl+Z: the suspended process keeps the camera and serial port open.
 - The system waits (WATCH) until the PIR sensor fires, then switches to detection and tracking (DETECT).
-- Detection images are saved to `SeamlessTrack/install/px2/share/px2/data/`.
+- Detection images are saved to `SeamlessTrack/frames/` only when `SAVE_FRAMES=true` (change with `SAVE_DIR`).
 - The log shows `px2: inference provider = trt` and a per-second `px2[timing] ... infer=...ms` line.
 
 | Variable | Meaning | Default |
@@ -117,8 +117,19 @@ PROVIDER=trt TRT_FP16=false ./launch_px.sh    # GPU: TensorRT FP32
 | `PROVIDER` | `trt` (TensorRT) / `cpu` (ONNX Runtime) | `trt` |
 | `TRT_FP16` | `true` = FP16 / `false` = FP32 | `true` |
 | `TRT_ENGINE` | Engine file to use (empty = pick from `engines/` automatically) | empty |
-| `SAVE_FRAMES` | Save detection images | `true` |
-| `TIMING_CSV` | Write per-frame timings to a CSV file | empty |
+| `SAVE_FRAMES` | Save each detected frame as a PNG (one per frame; slows the loop) | `false` |
+| `TIMING_CSV` | Write per-frame timings, errors, and commanded angles to a CSV file | empty |
+| `KP` / `KD` | PD gains (both axes). `KP` acts as an integral gain and `KD` as a proportional gain. Measure the delay before raising `KP` | `0.3` / `0.3` |
+| `MAX_STEP` | Largest move per frame (degrees) | `3.0` |
+| `DEAD_ZONE` | Dead zone (degrees). Keep at 1.0 or more while commands are integers | `1.0` |
+| `LOST_TIMEOUT` | Seconds without a detection before returning to WATCH | `1.0` |
+| `ACTIVE_W` / `ACTIVE_H` / `ACTIVE_FPS` | Camera capture mode | `1920` / `1080` / `30.0` |
+| `CAP_BUFFER` | Frames buffered by the camera driver (0 = leave as is). Use 2 if the frame rate halves | `1` |
+| `LATEST_FRAME` | `true` = read the camera in a separate thread and use only the newest frame | `true` |
+| `SAVE_DIR` | Where detected frames are saved | `SeamlessTrack/frames` |
+| `MODEL_PATH` / `CALIB_PATH` | Model and calibration files (empty = `install/px2/share/px2/weights/`) | empty |
+| `SERVO_LAG_MS` | Servo lag in ms, used for the `servo_at_capture_*` CSV columns | `0.0` |
+| `REWAKE_DELAY_MS` | After returning to WATCH, do not wake again for this long even if the PIR stays HIGH | `1000` |
 
 To test the camera, inference and servos without the PIR sensor, see "Checking the wiring" in [docs/WIRING.md](docs/WIRING.md).
 
@@ -162,7 +173,7 @@ See the "SSH / Tailscale / VNC" section of [docs/03_commands.md](docs/03_command
 |---|---|
 | `cpp-ci` | clang-format (v14) on `SeamlessTrack/src` |
 | `python-lint` | ruff format / lint and unit tests |
-| `px-parameter-contract` | Launch-file and C++ parameters stay in sync (`max_step_deg` is excluded because it is tuned often) |
+| `px-parameter-contract` | Launch-file and C++ parameters stay in sync |
 | `colcon-build` | ROS 2 build. **Manual trigger only**, because ONNX Runtime can no longer be downloaded from GitHub |
 
 Run the same checks locally: `./ci_checks/run_local.sh` (`--fix` applies formatting). Requires uv and clang-format 14 (`pip install clang-format==14.0.6`).
@@ -177,6 +188,10 @@ Run the same checks locally: `./ci_checks/run_local.sh` (`--fix` applies formatt
 | [docs/01_conversation_log.md](docs/01_conversation_log.md) | Build log: what was done, what went wrong, how it was fixed |
 | [docs/02_experiment_data.md](docs/02_experiment_data.md) | Environment, benchmark results, error list |
 | [docs/03_commands.md](docs/03_commands.md) | Command reference by task |
+| [docs/04_fix_log_2026-11-19.md](docs/04_fix_log_2026-11-19.md) | Record of fixes F01–F27: behavior changes, where each fix is, checklist (Japanese) |
+| [docs/04_fix_patch_2026-11-19.patch](docs/04_fix_patch_2026-11-19.patch) | Diff against the 2026-11-18 code (fixes F01–F27) |
+| [docs/05_roadmap_2026-11-19.md](docs/05_roadmap_2026-11-19.md) | Improvement roadmap: issues, done and open fixes, next stages (Japanese) |
+| [docs/06_review_of_fixes_F01-F17.md](docs/06_review_of_fixes_F01-F17.md) | Review of fixes F01–F17 and how each point was handled (Japanese) |
 | [PX4.3_archive/README.md](PX4.3_archive/README.md) | Files moved out in PX4.4 and how to restore them |
 
 The documents in `docs/` are written in Japanese.

@@ -1,0 +1,699 @@
+&&&& RUNNING TensorRT.trtexec [TensorRT v100300] # /usr/src/tensorrt/bin/trtexec --onnx=/ros2_ws/work/src/px2/weights/yolo11.onnx --saveEngine=/ros2_ws/work/engines/yolo11_fp16.engine --fp16 --memPoolSize=workspace:1024 --warmUp=500 --duration=10 --useSpinWait
+[11/18/2026-09:28:09] [I] === Model Options ===
+[11/18/2026-09:28:09] [I] Format: ONNX
+[11/18/2026-09:28:09] [I] Model: /ros2_ws/work/src/px2/weights/yolo11.onnx
+[11/18/2026-09:28:09] [I] Output:
+[11/18/2026-09:28:09] [I] === Build Options ===
+[11/18/2026-09:28:09] [I] Memory Pools: workspace: 1024 MiB, dlaSRAM: default, dlaLocalDRAM: default, dlaGlobalDRAM: default, tacticSharedMem: default
+[11/18/2026-09:28:09] [I] avgTiming: 8
+[11/18/2026-09:28:09] [I] Precision: FP32+FP16
+[11/18/2026-09:28:09] [I] LayerPrecisions: 
+[11/18/2026-09:28:09] [I] Layer Device Types: 
+[11/18/2026-09:28:09] [I] Calibration: 
+[11/18/2026-09:28:09] [I] Refit: Disabled
+[11/18/2026-09:28:09] [I] Strip weights: Disabled
+[11/18/2026-09:28:09] [I] Version Compatible: Disabled
+[11/18/2026-09:28:09] [I] ONNX Plugin InstanceNorm: Disabled
+[11/18/2026-09:28:09] [I] TensorRT runtime: full
+[11/18/2026-09:28:09] [I] Lean DLL Path: 
+[11/18/2026-09:28:09] [I] Tempfile Controls: { in_memory: allow, temporary: allow }
+[11/18/2026-09:28:09] [I] Exclude Lean Runtime: Disabled
+[11/18/2026-09:28:09] [I] Sparsity: Disabled
+[11/18/2026-09:28:09] [I] Safe mode: Disabled
+[11/18/2026-09:28:09] [I] Build DLA standalone loadable: Disabled
+[11/18/2026-09:28:09] [I] Allow GPU fallback for DLA: Disabled
+[11/18/2026-09:28:09] [I] DirectIO mode: Disabled
+[11/18/2026-09:28:09] [I] Restricted mode: Disabled
+[11/18/2026-09:28:09] [I] Skip inference: Disabled
+[11/18/2026-09:28:09] [I] Save engine: /ros2_ws/work/engines/yolo11_fp16.engine
+[11/18/2026-09:28:09] [I] Load engine: 
+[11/18/2026-09:28:09] [I] Profiling verbosity: 0
+[11/18/2026-09:28:09] [I] Tactic sources: Using default tactic sources
+[11/18/2026-09:28:09] [I] timingCacheMode: local
+[11/18/2026-09:28:09] [I] timingCacheFile: 
+[11/18/2026-09:28:09] [I] Enable Compilation Cache: Enabled
+[11/18/2026-09:28:09] [I] errorOnTimingCacheMiss: Disabled
+[11/18/2026-09:28:09] [I] Preview Features: Use default preview flags.
+[11/18/2026-09:28:09] [I] MaxAuxStreams: -1
+[11/18/2026-09:28:09] [I] BuilderOptimizationLevel: -1
+[11/18/2026-09:28:09] [I] Calibration Profile Index: 0
+[11/18/2026-09:28:09] [I] Weight Streaming: Disabled
+[11/18/2026-09:28:09] [I] Runtime Platform: Same As Build
+[11/18/2026-09:28:09] [I] Debug Tensors: 
+[11/18/2026-09:28:09] [I] Input(s)s format: fp32:CHW
+[11/18/2026-09:28:09] [I] Output(s)s format: fp32:CHW
+[11/18/2026-09:28:09] [I] Input build shapes: model
+[11/18/2026-09:28:09] [I] Input calibration shapes: model
+[11/18/2026-09:28:09] [I] === System Options ===
+[11/18/2026-09:28:09] [I] Device: 0
+[11/18/2026-09:28:09] [I] DLACore: 
+[11/18/2026-09:28:09] [I] Plugins:
+[11/18/2026-09:28:09] [I] setPluginsToSerialize:
+[11/18/2026-09:28:09] [I] dynamicPlugins:
+[11/18/2026-09:28:09] [I] ignoreParsedPluginLibs: 0
+[11/18/2026-09:28:09] [I] 
+[11/18/2026-09:28:09] [I] === Inference Options ===
+[11/18/2026-09:28:09] [I] Batch: Explicit
+[11/18/2026-09:28:09] [I] Input inference shapes: model
+[11/18/2026-09:28:09] [I] Iterations: 10
+[11/18/2026-09:28:09] [I] Duration: 10s (+ 500ms warm up)
+[11/18/2026-09:28:09] [I] Sleep time: 0ms
+[11/18/2026-09:28:09] [I] Idle time: 0ms
+[11/18/2026-09:28:09] [I] Inference Streams: 1
+[11/18/2026-09:28:09] [I] ExposeDMA: Disabled
+[11/18/2026-09:28:09] [I] Data transfers: Enabled
+[11/18/2026-09:28:09] [I] Spin-wait: Enabled
+[11/18/2026-09:28:09] [I] Multithreading: Disabled
+[11/18/2026-09:28:09] [I] CUDA Graph: Disabled
+[11/18/2026-09:28:09] [I] Separate profiling: Disabled
+[11/18/2026-09:28:09] [I] Time Deserialize: Disabled
+[11/18/2026-09:28:09] [I] Time Refit: Disabled
+[11/18/2026-09:28:09] [I] NVTX verbosity: 0
+[11/18/2026-09:28:09] [I] Persistent Cache Ratio: 0
+[11/18/2026-09:28:09] [I] Optimization Profile Index: 0
+[11/18/2026-09:28:09] [I] Weight Streaming Budget: 100.000000%
+[11/18/2026-09:28:09] [I] Inputs:
+[11/18/2026-09:28:09] [I] Debug Tensor Save Destinations:
+[11/18/2026-09:28:09] [I] === Reporting Options ===
+[11/18/2026-09:28:09] [I] Verbose: Disabled
+[11/18/2026-09:28:09] [I] Averages: 10 inferences
+[11/18/2026-09:28:09] [I] Percentiles: 90,95,99
+[11/18/2026-09:28:09] [I] Dump refittable layers:Disabled
+[11/18/2026-09:28:09] [I] Dump output: Disabled
+[11/18/2026-09:28:09] [I] Profile: Disabled
+[11/18/2026-09:28:09] [I] Export timing to JSON file: 
+[11/18/2026-09:28:09] [I] Export output to JSON file: 
+[11/18/2026-09:28:09] [I] Export profile to JSON file: 
+[11/18/2026-09:28:09] [I] 
+[11/18/2026-09:28:09] [I] === Device Information ===
+[11/18/2026-09:28:09] [I] Available Devices: 
+[11/18/2026-09:28:09] [I]   Device 0: "Orin" UUID: GPU-bb975809-c241-5936-b710-ef7d6896a168
+[11/18/2026-09:28:09] [I] Selected Device: Orin
+[11/18/2026-09:28:09] [I] Selected Device ID: 0
+[11/18/2026-09:28:09] [I] Selected Device UUID: GPU-bb975809-c241-5936-b710-ef7d6896a168
+[11/18/2026-09:28:09] [I] Compute Capability: 8.7
+[11/18/2026-09:28:09] [I] SMs: 8
+[11/18/2026-09:28:09] [I] Device Global Memory: 7619 MiB
+[11/18/2026-09:28:09] [I] Shared Memory per SM: 164 KiB
+[11/18/2026-09:28:09] [I] Memory Bus Width: 128 bits (ECC disabled)
+[11/18/2026-09:28:09] [I] Application Compute Clock Rate: 1.02 GHz
+[11/18/2026-09:28:09] [I] Application Memory Clock Rate: 1.02 GHz
+[11/18/2026-09:28:09] [I] 
+[11/18/2026-09:28:09] [I] Note: The application clock rates do not reflect the actual clock rates that the GPU is currently running at.
+[11/18/2026-09:28:09] [I] 
+[11/18/2026-09:28:09] [I] TensorRT version: 10.3.0
+[11/18/2026-09:28:09] [I] Loading standard plugins
+[11/18/2026-09:28:09] [I] [TRT] [MemUsageChange] Init CUDA: CPU +2, GPU +0, now: CPU 31, GPU 3204 (MiB)
+[11/18/2026-09:28:12] [I] [TRT] [MemUsageChange] Init builder kernel library: CPU +928, GPU +1093, now: CPU 1002, GPU 4341 (MiB)
+[11/18/2026-09:28:12] [I] Start parsing network model.
+[11/18/2026-09:28:12] [I] [TRT] ----------------------------------------------------------------
+[11/18/2026-09:28:12] [I] [TRT] Input filename:   /ros2_ws/work/src/px2/weights/yolo11.onnx
+[11/18/2026-09:28:12] [I] [TRT] ONNX IR version:  0.0.7
+[11/18/2026-09:28:12] [I] [TRT] Opset version:    12
+[11/18/2026-09:28:12] [I] [TRT] Producer name:    pytorch
+[11/18/2026-09:28:12] [I] [TRT] Producer version: 2.11.0
+[11/18/2026-09:28:12] [I] [TRT] Domain:           
+[11/18/2026-09:28:12] [I] [TRT] Model version:    0
+[11/18/2026-09:28:12] [I] [TRT] Doc string:       
+[11/18/2026-09:28:12] [I] [TRT] ----------------------------------------------------------------
+[11/18/2026-09:28:12] [I] Finished parsing network model. Parse time: 0.0340676
+[11/18/2026-09:28:12] [I] [TRT] Local timing cache in use. Profiling results in this builder pass will not be stored.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86144000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86144000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86144000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86144000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86144000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86144000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86528000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 90112000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 90112000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 90112000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86080000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86080000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86080000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86144000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86144000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86144000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86272000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86272000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:21] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:21] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86272000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:22] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:22] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:22] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:22] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:22] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:22] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86528000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:22] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:22] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:22] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:22] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:22] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:22] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 87040000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:23] [W] [TRT] Tactic Device request: 78MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:23] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 81920000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:23] [W] [TRT] Tactic Device request: 78MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:23] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 81920000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:23] [W] [TRT] Tactic Device request: 78MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:23] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 81920000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86528000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86528000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88064000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 97MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 102400000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 97MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 102400000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 97MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 102400000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86272000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86272000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:25] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:25] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86272000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86528000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86528000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 87040000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88064000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 90112000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 90112000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:26] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:26] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 90112000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:27] [W] [TRT] Tactic Device request: 71MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:27] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 75366400 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:27] [W] [TRT] Tactic Device request: 71MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:27] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 75366400 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:27] [W] [TRT] Tactic Device request: 71MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:27] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 75366400 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:28] [W] [TRT] Tactic Device request: 115MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:28] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 121241600 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:28] [W] [TRT] Tactic Device request: 115MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:28] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 121241600 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:28] [W] [TRT] Tactic Device request: 115MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:28] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 121241600 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:29] [W] [TRT] Tactic Device request: 71MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:29] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 75366400 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:29] [W] [TRT] Tactic Device request: 71MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:29] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 75366400 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:29] [W] [TRT] Tactic Device request: 71MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:29] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 75366400 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:30] [W] [TRT] Tactic Device request: 78MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:30] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 81920000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:30] [W] [TRT] Tactic Device request: 78MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:30] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 81920000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:30] [W] [TRT] Tactic Device request: 78MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:30] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 81920000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 77414400 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 77414400 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 77414400 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86016000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86016000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:31] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:31] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86016000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:33] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:33] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:33] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:33] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 77414400 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:33] [W] [TRT] Tactic Device request: 73MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:33] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 77414400 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:34] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:34] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 86016000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:34] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:34] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 86016000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:34] [W] [TRT] Tactic Device request: 82MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:34] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 86016000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:38] [W] [TRT] Tactic Device request: 88MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:38] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 93139456 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:38] [W] [TRT] Tactic Device request: 88MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:38] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 93139456 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:38] [W] [TRT] Tactic Device request: 88MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:38] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 93139456 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88064000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88064000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 89MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 94208000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 89MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 94208000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:40] [W] [TRT] Tactic Device request: 89MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:40] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 94208000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 72MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 76288000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 72MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 76288000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 72MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 76288000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 144MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 151552000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 144MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 151552000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 144MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 151552000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 72MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 76288000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 72MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 76288000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 72MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 76288000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 87040000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 87040000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 87040000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88064000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88064000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 90112000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 90112000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 85MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 90112000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 89MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 94208000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 89MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 94208000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 89MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 94208000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 97MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 102400000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 97MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 102400000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:41] [W] [TRT] Tactic Device request: 97MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:41] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 102400000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88704000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88704000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 96768000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88704000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 96768000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 87360000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 87360000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 87360000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88704000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 96768000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 102MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 107520000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 102MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 107520000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 102MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 107520000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 87360000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 87360000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 83MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 87360000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88704000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88704000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 96768000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:42] [W] [TRT] Tactic Device request: 92MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:42] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 96768000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 102MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 107520000 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 102MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 107520000 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 102MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 107520000 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 88MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 93139456 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 88MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 93139456 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 88MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 93139456 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 0 due to insufficient memory on requested size of 88838656 detected for tactic 0x00000000000003e8.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 1 due to insufficient memory on requested size of 88838656 detected for tactic 0x00000000000003ea.
+[11/18/2026-09:34:43] [W] [TRT] Tactic Device request: 84MB Available: 71MB. Device memory is insufficient to use tactic.
+[11/18/2026-09:34:43] [W] [TRT] UNSUPPORTED_STATE: Skipping tactic 2 due to insufficient memory on requested size of 88838656 detected for tactic 0x0000000000000000.
+[11/18/2026-09:34:43] [I] [TRT] Detected 1 inputs and 3 output network tensors.
+[11/18/2026-09:34:50] [I] [TRT] Total Host Persistent Memory: 536976
+[11/18/2026-09:34:50] [I] [TRT] Total Device Persistent Memory: 1024
+[11/18/2026-09:34:50] [I] [TRT] Total Scratch Memory: 1382400
+[11/18/2026-09:34:50] [I] [TRT] [BlockAssignment] Started assigning block shifts. This will take 171 steps to complete.
+[11/18/2026-09:34:50] [I] [TRT] [BlockAssignment] Algorithm ShiftNTopDown took 16.9258ms to assign 11 blocks to 171 nodes requiring 10189824 bytes.
+[11/18/2026-09:34:50] [I] [TRT] Total Activation Memory: 10188800
+[11/18/2026-09:34:50] [I] [TRT] Total Weights Memory: 5367204
+[11/18/2026-09:34:50] [I] [TRT] Engine generation completed in 398.014 seconds.
+[11/18/2026-09:34:50] [I] [TRT] [MemUsageStats] Peak memory usage of TRT CPU/GPU memory allocators: CPU 0 MiB, GPU 69 MiB
+[11/18/2026-09:34:50] [I] [TRT] [MemUsageStats] Peak memory usage during Engine building and serialization: CPU: 1696 MiB
+[11/18/2026-09:34:50] [I] Engine built in 398.167 sec.
+[11/18/2026-09:34:50] [I] Created engine with size: 8.1745 MiB
+[11/18/2026-09:34:50] [I] [TRT] Loaded engine size: 8 MiB
+[11/18/2026-09:34:50] [I] Engine deserialized in 0.0498034 sec.
+[11/18/2026-09:34:50] [I] [TRT] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +9, now: CPU 0, GPU 14 (MiB)
+[11/18/2026-09:34:50] [I] Setting persistentCacheLimit to 0 bytes.
+[11/18/2026-09:34:50] [I] Created execution context with device memory size: 9.7168 MiB
+[11/18/2026-09:34:50] [I] Using random values for input images
+[11/18/2026-09:34:50] [I] Input binding for images with dimensions 1x3x640x640 is created.
+[11/18/2026-09:34:50] [I] Output binding for output0 with dimensions 1x84x8400 is created.
+[11/18/2026-09:34:50] [I] Starting inference
+[11/18/2026-09:35:01] [I] Warmup completed 98 queries over 500 ms
+[11/18/2026-09:35:01] [I] Timing trace has 1950 queries over 10.0151 s
+[11/18/2026-09:35:01] [I] 
+[11/18/2026-09:35:01] [I] === Trace details ===
+[11/18/2026-09:35:01] [I] Trace averages of 10 runs:
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13327 ms - Host latency: 5.64872 ms (enqueue 1.86423 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12017 ms - Host latency: 5.6334 ms (enqueue 1.859 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10905 ms - Host latency: 5.61199 ms (enqueue 1.84394 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.2491 ms - Host latency: 5.74859 ms (enqueue 1.84467 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12708 ms - Host latency: 5.63784 ms (enqueue 1.86384 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11641 ms - Host latency: 5.63046 ms (enqueue 1.867 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10419 ms - Host latency: 5.61663 ms (enqueue 1.84757 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10538 ms - Host latency: 5.59601 ms (enqueue 1.86462 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12628 ms - Host latency: 5.62585 ms (enqueue 1.86816 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10491 ms - Host latency: 5.6084 ms (enqueue 1.86149 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12487 ms - Host latency: 5.64153 ms (enqueue 1.86095 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14943 ms - Host latency: 5.66471 ms (enqueue 1.85223 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1161 ms - Host latency: 5.62435 ms (enqueue 1.85295 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12814 ms - Host latency: 5.63156 ms (enqueue 1.85911 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11611 ms - Host latency: 5.63048 ms (enqueue 1.86702 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.2175 ms - Host latency: 5.7212 ms (enqueue 1.90507 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.08939 ms - Host latency: 5.6037 ms (enqueue 1.85671 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13464 ms - Host latency: 5.64171 ms (enqueue 1.8587 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12997 ms - Host latency: 5.62981 ms (enqueue 1.8609 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12554 ms - Host latency: 5.63895 ms (enqueue 1.86135 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12933 ms - Host latency: 5.62764 ms (enqueue 1.86532 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13064 ms - Host latency: 5.64312 ms (enqueue 1.85625 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12284 ms - Host latency: 5.61954 ms (enqueue 1.85314 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.17194 ms - Host latency: 5.67655 ms (enqueue 1.86915 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11708 ms - Host latency: 5.63063 ms (enqueue 1.85526 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13031 ms - Host latency: 5.64374 ms (enqueue 1.8609 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1038 ms - Host latency: 5.60579 ms (enqueue 1.86027 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13109 ms - Host latency: 5.63058 ms (enqueue 1.85645 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.22703 ms - Host latency: 5.74125 ms (enqueue 1.85023 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.09889 ms - Host latency: 5.61075 ms (enqueue 1.85601 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12349 ms - Host latency: 5.63689 ms (enqueue 1.8651 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12219 ms - Host latency: 5.63865 ms (enqueue 1.86411 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.0967 ms - Host latency: 5.58203 ms (enqueue 1.86926 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12129 ms - Host latency: 5.62463 ms (enqueue 1.85674 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10281 ms - Host latency: 5.61843 ms (enqueue 1.85859 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13821 ms - Host latency: 5.6406 ms (enqueue 1.86541 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.17126 ms - Host latency: 5.68398 ms (enqueue 1.86074 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10371 ms - Host latency: 5.5929 ms (enqueue 1.85513 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11433 ms - Host latency: 5.61016 ms (enqueue 1.85752 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12107 ms - Host latency: 5.63794 ms (enqueue 1.86572 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.21126 ms - Host latency: 5.72556 ms (enqueue 1.86484 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12944 ms - Host latency: 5.6304 ms (enqueue 1.85071 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10486 ms - Host latency: 5.60586 ms (enqueue 1.85076 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11121 ms - Host latency: 5.59959 ms (enqueue 1.86223 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11621 ms - Host latency: 5.62834 ms (enqueue 1.8635 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12302 ms - Host latency: 5.63577 ms (enqueue 1.8593 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12922 ms - Host latency: 5.64453 ms (enqueue 1.84985 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1292 ms - Host latency: 5.6415 ms (enqueue 1.84509 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.17168 ms - Host latency: 5.67705 ms (enqueue 1.84819 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11082 ms - Host latency: 5.62556 ms (enqueue 1.85063 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12202 ms - Host latency: 5.63489 ms (enqueue 1.85579 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 4.98381 ms - Host latency: 5.50715 ms (enqueue 1.8594 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10313 ms - Host latency: 5.6155 ms (enqueue 1.8606 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12981 ms - Host latency: 5.63269 ms (enqueue 1.85525 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12888 ms - Host latency: 5.64077 ms (enqueue 1.8553 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.21863 ms - Host latency: 5.72214 ms (enqueue 1.85779 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10972 ms - Host latency: 5.62666 ms (enqueue 1.85203 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12544 ms - Host latency: 5.63728 ms (enqueue 1.86233 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11824 ms - Host latency: 5.63252 ms (enqueue 1.87019 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11543 ms - Host latency: 5.61816 ms (enqueue 1.86443 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12632 ms - Host latency: 5.6415 ms (enqueue 1.85217 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10471 ms - Host latency: 5.61848 ms (enqueue 1.84341 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12739 ms - Host latency: 5.64065 ms (enqueue 1.86975 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.15247 ms - Host latency: 5.66709 ms (enqueue 1.87307 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1043 ms - Host latency: 5.60264 ms (enqueue 1.86289 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14138 ms - Host latency: 5.65496 ms (enqueue 1.84844 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10833 ms - Host latency: 5.61804 ms (enqueue 1.8562 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.22029 ms - Host latency: 5.73499 ms (enqueue 1.86731 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12649 ms - Host latency: 5.62834 ms (enqueue 1.86372 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12439 ms - Host latency: 5.63281 ms (enqueue 1.85981 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11523 ms - Host latency: 5.61653 ms (enqueue 1.85933 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11538 ms - Host latency: 5.62769 ms (enqueue 1.86372 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12847 ms - Host latency: 5.63936 ms (enqueue 1.85874 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11997 ms - Host latency: 5.63496 ms (enqueue 1.85566 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11528 ms - Host latency: 5.61841 ms (enqueue 1.87007 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1356 ms - Host latency: 5.64697 ms (enqueue 1.85854 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.17334 ms - Host latency: 5.68169 ms (enqueue 1.85459 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.09819 ms - Host latency: 5.60962 ms (enqueue 1.84453 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10781 ms - Host latency: 5.62114 ms (enqueue 1.85679 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.21826 ms - Host latency: 5.7293 ms (enqueue 1.87109 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10708 ms - Host latency: 5.6104 ms (enqueue 1.85669 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10747 ms - Host latency: 5.61274 ms (enqueue 1.84233 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13062 ms - Host latency: 5.62798 ms (enqueue 1.84868 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.123 ms - Host latency: 5.63364 ms (enqueue 1.86133 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12788 ms - Host latency: 5.6397 ms (enqueue 1.84775 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14116 ms - Host latency: 5.64072 ms (enqueue 1.84663 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13477 ms - Host latency: 5.63428 ms (enqueue 1.84492 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10303 ms - Host latency: 5.61753 ms (enqueue 1.86045 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.17393 ms - Host latency: 5.68706 ms (enqueue 1.85869 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11611 ms - Host latency: 5.62148 ms (enqueue 1.85488 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12329 ms - Host latency: 5.63076 ms (enqueue 1.85254 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13369 ms - Host latency: 5.64614 ms (enqueue 1.86152 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11362 ms - Host latency: 5.62642 ms (enqueue 1.86289 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.23335 ms - Host latency: 5.74663 ms (enqueue 1.85605 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.127 ms - Host latency: 5.64185 ms (enqueue 1.9 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11123 ms - Host latency: 5.61934 ms (enqueue 1.86768 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12495 ms - Host latency: 5.62671 ms (enqueue 1.86284 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11533 ms - Host latency: 5.629 ms (enqueue 1.85093 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10225 ms - Host latency: 5.60591 ms (enqueue 1.84648 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12173 ms - Host latency: 5.63496 ms (enqueue 1.87031 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1145 ms - Host latency: 5.62627 ms (enqueue 1.87227 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.18057 ms - Host latency: 5.68442 ms (enqueue 1.85801 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1187 ms - Host latency: 5.61631 ms (enqueue 1.84976 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13477 ms - Host latency: 5.64668 ms (enqueue 1.86436 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.22061 ms - Host latency: 5.73125 ms (enqueue 1.86089 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11431 ms - Host latency: 5.62871 ms (enqueue 1.8666 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12339 ms - Host latency: 5.62734 ms (enqueue 1.85107 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12495 ms - Host latency: 5.63745 ms (enqueue 1.86621 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12031 ms - Host latency: 5.6355 ms (enqueue 1.86602 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10405 ms - Host latency: 5.61899 ms (enqueue 1.85259 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1167 ms - Host latency: 5.61851 ms (enqueue 1.85317 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13677 ms - Host latency: 5.63716 ms (enqueue 1.86416 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11646 ms - Host latency: 5.61914 ms (enqueue 1.86392 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1585 ms - Host latency: 5.67188 ms (enqueue 1.8542 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10732 ms - Host latency: 5.62109 ms (enqueue 1.85327 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11675 ms - Host latency: 5.61606 ms (enqueue 1.86523 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.25581 ms - Host latency: 5.76831 ms (enqueue 1.875 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10747 ms - Host latency: 5.61943 ms (enqueue 1.85439 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13291 ms - Host latency: 5.64102 ms (enqueue 1.84619 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11631 ms - Host latency: 5.62114 ms (enqueue 1.85405 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12148 ms - Host latency: 5.63467 ms (enqueue 1.87285 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10957 ms - Host latency: 5.62056 ms (enqueue 1.86196 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11475 ms - Host latency: 5.61782 ms (enqueue 1.84277 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13091 ms - Host latency: 5.64004 ms (enqueue 1.85151 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11318 ms - Host latency: 5.61162 ms (enqueue 1.85283 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.15269 ms - Host latency: 5.66606 ms (enqueue 1.85898 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12368 ms - Host latency: 5.63936 ms (enqueue 1.85391 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11763 ms - Host latency: 5.62388 ms (enqueue 1.86646 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12793 ms - Host latency: 5.63311 ms (enqueue 1.86655 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1252 ms - Host latency: 5.63887 ms (enqueue 1.85444 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.2271 ms - Host latency: 5.73989 ms (enqueue 1.86401 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13799 ms - Host latency: 5.65337 ms (enqueue 1.86729 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12695 ms - Host latency: 5.63848 ms (enqueue 1.87334 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13335 ms - Host latency: 5.6335 ms (enqueue 1.86563 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13354 ms - Host latency: 5.6479 ms (enqueue 1.84604 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.09766 ms - Host latency: 5.59521 ms (enqueue 1.84673 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1147 ms - Host latency: 5.62725 ms (enqueue 1.86743 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11968 ms - Host latency: 5.63408 ms (enqueue 1.86899 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10811 ms - Host latency: 5.60879 ms (enqueue 1.85747 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1832 ms - Host latency: 5.68892 ms (enqueue 1.84609 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12363 ms - Host latency: 5.61792 ms (enqueue 1.84692 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.25356 ms - Host latency: 5.75854 ms (enqueue 1.85845 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13501 ms - Host latency: 5.64116 ms (enqueue 1.85869 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.09824 ms - Host latency: 5.60752 ms (enqueue 1.84614 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.15942 ms - Host latency: 5.66016 ms (enqueue 1.84731 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.13135 ms - Host latency: 5.64595 ms (enqueue 1.85508 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10552 ms - Host latency: 5.61318 ms (enqueue 1.84844 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14331 ms - Host latency: 5.6437 ms (enqueue 1.85664 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12109 ms - Host latency: 5.61929 ms (enqueue 1.85376 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.19365 ms - Host latency: 5.70566 ms (enqueue 1.85908 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12363 ms - Host latency: 5.63779 ms (enqueue 1.85859 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11943 ms - Host latency: 5.63262 ms (enqueue 1.86152 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.24834 ms - Host latency: 5.76103 ms (enqueue 1.85459 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12461 ms - Host latency: 5.62939 ms (enqueue 1.87109 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.129 ms - Host latency: 5.63242 ms (enqueue 1.85957 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12617 ms - Host latency: 5.62627 ms (enqueue 1.85752 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11309 ms - Host latency: 5.625 ms (enqueue 1.85439 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12109 ms - Host latency: 5.63438 ms (enqueue 1.88916 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10557 ms - Host latency: 5.6083 ms (enqueue 1.87119 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1126 ms - Host latency: 5.6127 ms (enqueue 1.85117 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.129 ms - Host latency: 5.63418 ms (enqueue 1.85947 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.16611 ms - Host latency: 5.67031 ms (enqueue 1.85928 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1082 ms - Host latency: 5.62383 ms (enqueue 1.87012 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11582 ms - Host latency: 5.62207 ms (enqueue 1.86631 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11582 ms - Host latency: 5.63037 ms (enqueue 1.86367 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11172 ms - Host latency: 5.61201 ms (enqueue 1.84951 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.24912 ms - Host latency: 5.74814 ms (enqueue 1.86689 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11387 ms - Host latency: 5.62764 ms (enqueue 1.87207 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12041 ms - Host latency: 5.62441 ms (enqueue 1.85645 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10234 ms - Host latency: 5.61592 ms (enqueue 1.86426 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11211 ms - Host latency: 5.61758 ms (enqueue 1.86094 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14199 ms - Host latency: 5.66016 ms (enqueue 1.85527 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14102 ms - Host latency: 5.64922 ms (enqueue 1.89111 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.14395 ms - Host latency: 5.65693 ms (enqueue 1.85928 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.17539 ms - Host latency: 5.67666 ms (enqueue 1.84365 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.10879 ms - Host latency: 5.62393 ms (enqueue 1.85908 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11201 ms - Host latency: 5.62783 ms (enqueue 1.86406 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.22754 ms - Host latency: 5.73838 ms (enqueue 1.86768 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12187 ms - Host latency: 5.62891 ms (enqueue 1.86465 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12549 ms - Host latency: 5.63232 ms (enqueue 1.86475 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11934 ms - Host latency: 5.63047 ms (enqueue 1.86553 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12061 ms - Host latency: 5.63418 ms (enqueue 1.85703 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12012 ms - Host latency: 5.625 ms (enqueue 1.85967 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11768 ms - Host latency: 5.62295 ms (enqueue 1.85596 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12158 ms - Host latency: 5.63652 ms (enqueue 1.86377 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.125 ms - Host latency: 5.63877 ms (enqueue 1.84912 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.16582 ms - Host latency: 5.67939 ms (enqueue 1.85088 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12539 ms - Host latency: 5.64043 ms (enqueue 1.85674 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11045 ms - Host latency: 5.61631 ms (enqueue 1.8708 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11172 ms - Host latency: 5.61621 ms (enqueue 1.86484 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12324 ms - Host latency: 5.63691 ms (enqueue 1.85078 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.22617 ms - Host latency: 5.72217 ms (enqueue 1.84844 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.11816 ms - Host latency: 5.63369 ms (enqueue 1.86367 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.12881 ms - Host latency: 5.63789 ms (enqueue 1.85576 ms)
+[11/18/2026-09:35:01] [I] Average on 10 runs - GPU latency: 5.1208 ms - Host latency: 5.61162 ms (enqueue 1.86113 ms)
+[11/18/2026-09:35:01] [I] 
+[11/18/2026-09:35:01] [I] === Performance summary ===
+[11/18/2026-09:35:01] [I] Throughput: 194.706 qps
+[11/18/2026-09:35:01] [I] Latency: min = 4.8877 ms, max = 6.8584 ms, mean = 5.64029 ms, median = 5.60168 ms, percentile(90%) = 6.29761 ms, percentile(95%) = 6.34668 ms, percentile(99%) = 6.74609 ms
+[11/18/2026-09:35:01] [I] Enqueue Time: min = 1.77637 ms, max = 2.21338 ms, mean = 1.85934 ms, median = 1.85815 ms, percentile(90%) = 1.88977 ms, percentile(95%) = 1.89746 ms, percentile(99%) = 1.9082 ms
+[11/18/2026-09:35:01] [I] H2D Latency: min = 0.183105 ms, max = 0.320312 ms, mean = 0.289683 ms, median = 0.293152 ms, percentile(90%) = 0.29895 ms, percentile(95%) = 0.302734 ms, percentile(99%) = 0.309082 ms
+[11/18/2026-09:35:01] [I] GPU Compute Time: min = 4.57617 ms, max = 6.34961 ms, mean = 5.1321 ms, median = 5.0907 ms, percentile(90%) = 5.78418 ms, percentile(95%) = 5.83142 ms, percentile(99%) = 6.23438 ms
+[11/18/2026-09:35:01] [I] D2H Latency: min = 0.104492 ms, max = 0.233398 ms, mean = 0.21852 ms, median = 0.21875 ms, percentile(90%) = 0.222656 ms, percentile(95%) = 0.225586 ms, percentile(99%) = 0.230469 ms
+[11/18/2026-09:35:01] [I] Total Host Walltime: 10.0151 s
+[11/18/2026-09:35:01] [I] Total GPU Compute Time: 10.0076 s
+[11/18/2026-09:35:01] [W] * GPU compute time is unstable, with coefficient of variance = 9.45203%.
+[11/18/2026-09:35:01] [W]   If not already in use, locking GPU clock frequency or adding --useSpinWait may improve the stability.
+[11/18/2026-09:35:01] [I] Explanations of the performance metrics are printed in the verbose logs.
+[11/18/2026-09:35:01] [I] 
+&&&& PASSED TensorRT.trtexec [TensorRT v100300] # /usr/src/tensorrt/bin/trtexec --onnx=/ros2_ws/work/src/px2/weights/yolo11.onnx --saveEngine=/ros2_ws/work/engines/yolo11_fp16.engine --fp16 --memPoolSize=workspace:1024 --warmUp=500 --duration=10 --useSpinWait

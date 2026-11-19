@@ -38,9 +38,20 @@ _CPP_PARAMETER_RE = re.compile(
     r"declare_parameter\s*<\s*(?P<cpp_type>[^>]+?)\s*>\s*"
     r"\(\s*\"(?P<name>[^\"]+)\"\s*,\s*"
     r"(?P<default>\"(?:\\.|[^\"\\])*\"|true|false|"
-    r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*\)",
+    r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|"
+    r"[A-Za-z_][A-Za-z0-9_:]*)\s*\)",
     re.MULTILINE,
 )
+
+# A default may be a named constant (e.g. ``declare_parameter<int>("pir_pin", PIR_PIN)``).
+# The constant is resolved from ``constexpr``/``const`` definitions in the same node's sources.
+_CPP_LITERAL = r"\"(?:\\.|[^\"\\])*\"|true|false|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
+_CPP_CONSTANT_RE = re.compile(
+    r"\b(?:constexpr|const)\s+[A-Za-z_][\w:<>\s\*]*?\b(?P<name>[A-Za-z_]\w*)\s*"
+    r"(?:=\s*(?P<eq>" + _CPP_LITERAL + r")\s*;|\{\s*(?P<brace>" + _CPP_LITERAL + r")\s*\}\s*;)",
+    re.MULTILINE,
+)
+_CPP_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_:]*")
 
 
 @dataclass(frozen=True)
@@ -235,21 +246,48 @@ def extract_cpp_parameters(
 ) -> tuple[dict[str, CppParameter], list[Issue]]:
     parameters: dict[str, CppParameter] = {}
     issues: list[Issue] = []
+    texts: list[tuple[Path, str]] = []
     for path in paths:
         if not path.exists():
             raise ContractParseError(f"C++ input file not found: {path}")
         text = path.read_text(encoding="utf-8", errors="replace")
-        search_text = _strip_cpp_comments(text)
+        texts.append((path, _strip_cpp_comments(text)))
+
+    # Named constants defined anywhere in this node's sources (header or .cpp).
+    constants: dict[str, str] = {}
+    for _, search_text in texts:
+        for match in _CPP_CONSTANT_RE.finditer(search_text):
+            constants.setdefault(match.group("name"), match.group("eq") or match.group("brace"))
+
+    for path, search_text in texts:
         for match in _CPP_PARAMETER_RE.finditer(search_text):
             name = match.group("name")
+            raw_default = match.group("default")
+            line = _line_number(search_text, match.start())
+            if raw_default not in ("true", "false") and _CPP_IDENTIFIER_RE.fullmatch(raw_default):
+                resolved = constants.get(raw_default.rsplit("::", 1)[-1])
+                if resolved is None:
+                    issues.append(
+                        Issue(
+                            "UNRESOLVED_CPP_DEFAULT",
+                            f"`{node}.{name}` uses the named default `{raw_default}` "
+                            f"(`{path}:{line}`), but no literal definition of it was found "
+                            "in this node's sources.",
+                        )
+                    )
+                    continue
+                default = _cpp_default(resolved)
+                raw_default = f"{raw_default} (= {resolved})"
+            else:
+                default = _cpp_default(raw_default)
             param = CppParameter(
                 node=node,
                 name=name,
                 cpp_type=match.group("cpp_type").strip(),
-                default=_cpp_default(match.group("default")),
-                raw_default=match.group("default"),
+                default=default,
+                raw_default=raw_default,
                 path=path,
-                line=_line_number(search_text, match.start()),
+                line=line,
             )
             if name in parameters:
                 previous = parameters[name]

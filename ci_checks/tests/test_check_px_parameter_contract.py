@@ -249,6 +249,60 @@ void build() {
         )
         self.assertTrue(result.passed, px_contract.render_markdown(result))
 
+    def test_named_constant_default_is_resolved(self) -> None:
+        launch = """
+from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
+def generate_launch_description():
+    pin = DeclareLaunchArgument("pir_pin", default_value="2")
+    node = Node(name="px3", parameters=[{
+        "pir_pin": ParameterValue(LaunchConfiguration("pir_pin"), value_type=int),
+    }])
+"""
+        result = self.run_contract(
+            launch,
+            {
+                "px3": """
+inline constexpr int PIR_PIN = 2; // SB612B OUT
+void build() {
+  const int pir_pin = declare_parameter<int>("pir_pin", PIR_PIN);
+}
+"""
+            },
+        )
+        self.assertTrue(result.passed, px_contract.render_markdown(result))
+
+        mismatch = self.run_contract(
+            launch,
+            {
+                "px3": """
+inline constexpr int PIR_PIN = 3;
+void build() { declare_parameter<int>("pir_pin", PIR_PIN); }
+"""
+            },
+        )
+        self.assertIn("DEFAULT_VALUE_MISMATCH", [issue.code for issue in mismatch.issues])
+
+    def test_unresolved_named_default_is_reported(self) -> None:
+        result = self.run_contract(
+            """
+from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
+def generate_launch_description():
+    pin = DeclareLaunchArgument("pir_pin", default_value="2")
+    node = Node(name="px3", parameters=[{
+        "pir_pin": ParameterValue(LaunchConfiguration("pir_pin"), value_type=int),
+    }])
+""",
+            {"px3": 'void build() { declare_parameter<int>("pir_pin", SOME_PIN); }'},
+        )
+        self.assertFalse(result.passed)
+        self.assertIn("UNRESOLVED_CPP_DEFAULT", [issue.code for issue in result.issues])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -132,9 +132,8 @@ int main(int argc, char** argv) {
 
   std::vector<double> pre, inf, post, total, h2d, gpu, d2h;
   for (int i = -warmup; i < iters; ++i) {
-    cv::Mat frame = src.clone(); // preprocess は画像を書き換えるので毎回コピー
     const auto t0 = Clock::now();
-    cv::Mat blob = yolo.preprocess(frame, 640, 640);
+    cv::Mat blob = yolo.preprocess(src, 640, 640); // preprocess は src を書き換えない
     const auto t1 = Clock::now();
     std::vector<Ort::Value> out = yolo.RunInference(blob);
     const auto t2 = Clock::now();

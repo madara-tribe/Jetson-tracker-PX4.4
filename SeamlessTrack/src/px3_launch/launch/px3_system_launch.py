@@ -22,13 +22,24 @@ def generate_launch_description():
 
     # px2 params
     arg_watch_f = DeclareLaunchArgument("watch_fps", default_value="10.0")
-    arg_lost = DeclareLaunchArgument("lost_max_frames", default_value="15")
+    # 見失い判定（秒）。最後の検出からこの時間が過ぎたら WATCH に戻る
+    arg_lost = DeclareLaunchArgument("lost_timeout_s", default_value="1.0")
     arg_save = DeclareLaunchArgument("save_frames", default_value="false")
     arg_conf = DeclareLaunchArgument("conf_threshold", default_value="0.25")
     # arg_prepro_use = DeclareLaunchArgument("preprocess_enable", default_value="true")
     arg_active_w = DeclareLaunchArgument("active_width", default_value="1920")
     arg_active_h = DeclareLaunchArgument("active_height", default_value="1080")
     arg_active_f = DeclareLaunchArgument("active_fps", default_value="30.0")
+    # カメラ側に溜めるフレーム数（1 = 古いフレームを溜めない）
+    arg_cap_buf = DeclareLaunchArgument("capture_buffer_size", default_value="1")
+    # true: 別スレッドでカメラを読み続け、最新の 1 枚だけを使う
+    arg_cap_thread = DeclareLaunchArgument("capture_thread", default_value="true")
+    # ファイルの場所（空なら share/px2/weights/ と /tmp/px2_frames を使う）
+    arg_model_path = DeclareLaunchArgument("model_path", default_value="")
+    arg_calib_path = DeclareLaunchArgument("calib_path", default_value="")
+    arg_save_dir = DeclareLaunchArgument("save_dir", default_value="")
+    # サーボが指令に追いつくまでの遅れ（ms）。指令角の履歴を引くときに使う
+    arg_servo_lag = DeclareLaunchArgument("servo_lag_ms", default_value="0.0")
 
     # inference backend (Jetson GPU)
     arg_ort_provider = DeclareLaunchArgument("ort_provider", default_value="tensorrt")
@@ -48,16 +59,23 @@ def generate_launch_description():
     # embedded px3 params
     arg_serial = DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0")
     arg_baudrate = DeclareLaunchArgument("baudrate", default_value="115200")
+    arg_pir_pin = DeclareLaunchArgument("pir_pin", default_value="2")
 
     # watch_node params
     arg_pir_debounce = DeclareLaunchArgument("pir_debounce_ms", default_value="200")
+    # px2 が WATCH に戻ってから、この時間は再起動しない（ms）
+    arg_rewake_delay = DeclareLaunchArgument("rewake_delay_ms", default_value="1000")
 
     # PD controller gains and step limit
+    #   kd_* は「1 フレームあたりの誤差の変化」に掛ける（dt では割らない）
     arg_max_step = DeclareLaunchArgument("max_step_deg", default_value="3.0")
     arg_kp_yaw = DeclareLaunchArgument("kp_yaw", default_value="0.3")
-    arg_kd_yaw = DeclareLaunchArgument("kd_yaw", default_value="0.2")
+    arg_kd_yaw = DeclareLaunchArgument("kd_yaw", default_value="0.3")
     arg_kp_pitch = DeclareLaunchArgument("kp_pitch", default_value="0.3")
-    arg_kd_pitch = DeclareLaunchArgument("kd_pitch", default_value="0.2")
+    arg_kd_pitch = DeclareLaunchArgument("kd_pitch", default_value="0.3")
+    # 死帯（度）。サーボへの指令が整数のうちは 1.0 未満にしない
+    arg_dz_yaw = DeclareLaunchArgument("dead_zone_yaw_deg", default_value="1.0")
+    arg_dz_pitch = DeclareLaunchArgument("dead_zone_pitch_deg", default_value="1.0")
 
     # ----------------------------------------------------------
     #  px2 node (px3 embedded inside)
@@ -71,8 +89,8 @@ def generate_launch_description():
         parameters=[
             {
                 "device_path": LaunchConfiguration("camera_path"),
-                "lost_max_frames": ParameterValue(
-                    LaunchConfiguration("lost_max_frames"), value_type=int
+                "lost_timeout_s": ParameterValue(
+                    LaunchConfiguration("lost_timeout_s"), value_type=float
                 ),
                 "save_frames": ParameterValue(LaunchConfiguration("save_frames"), value_type=bool),
                 "conf_threshold": ParameterValue(
@@ -98,14 +116,35 @@ def generate_launch_description():
                 "kd_yaw": ParameterValue(LaunchConfiguration("kd_yaw"), value_type=float),
                 "kp_pitch": ParameterValue(LaunchConfiguration("kp_pitch"), value_type=float),
                 "kd_pitch": ParameterValue(LaunchConfiguration("kd_pitch"), value_type=float),
+                "dead_zone_yaw_deg": ParameterValue(
+                    LaunchConfiguration("dead_zone_yaw_deg"), value_type=float
+                ),
+                "dead_zone_pitch_deg": ParameterValue(
+                    LaunchConfiguration("dead_zone_pitch_deg"), value_type=float
+                ),
+                # 次の 3 つは px2 が受け取り、同じプロセスの px3 に渡す
+                # （x_center_deg / y_center_deg も同じように px3 に渡る）
                 "serial_port": LaunchConfiguration("serial_port"),
                 "baudrate": ParameterValue(LaunchConfiguration("baudrate"), value_type=int),
+                "pir_pin": ParameterValue(LaunchConfiguration("pir_pin"), value_type=int),
                 "watch_fps": ParameterValue(LaunchConfiguration("watch_fps"), value_type=float),
                 "active_width": ParameterValue(LaunchConfiguration("active_width"), value_type=int),
                 "active_height": ParameterValue(
                     LaunchConfiguration("active_height"), value_type=int
                 ),
                 "active_fps": ParameterValue(LaunchConfiguration("active_fps"), value_type=float),
+                "capture_buffer_size": ParameterValue(
+                    LaunchConfiguration("capture_buffer_size"), value_type=int
+                ),
+                "capture_thread": ParameterValue(
+                    LaunchConfiguration("capture_thread"), value_type=bool
+                ),
+                "model_path": ParameterValue(LaunchConfiguration("model_path"), value_type=str),
+                "calib_path": ParameterValue(LaunchConfiguration("calib_path"), value_type=str),
+                "save_dir": ParameterValue(LaunchConfiguration("save_dir"), value_type=str),
+                "servo_lag_ms": ParameterValue(
+                    LaunchConfiguration("servo_lag_ms"), value_type=float
+                ),
                 "ort_provider": LaunchConfiguration("ort_provider"),
                 "trt_fp16": ParameterValue(LaunchConfiguration("trt_fp16"), value_type=bool),
                 "trt_cache_dir": LaunchConfiguration("trt_cache_dir"),
@@ -132,6 +171,9 @@ def generate_launch_description():
                 "pir_debounce_ms": ParameterValue(
                     LaunchConfiguration("pir_debounce_ms"), value_type=int
                 ),
+                "rewake_delay_ms": ParameterValue(
+                    LaunchConfiguration("rewake_delay_ms"), value_type=int
+                ),
             }
         ],
     )
@@ -155,6 +197,12 @@ def generate_launch_description():
             arg_active_w,
             arg_active_h,
             arg_active_f,
+            arg_cap_buf,
+            arg_cap_thread,
+            arg_model_path,
+            arg_calib_path,
+            arg_save_dir,
+            arg_servo_lag,
             arg_ort_provider,
             arg_trt_fp16,
             arg_trt_cache_dir,
@@ -171,11 +219,15 @@ def generate_launch_description():
             arg_kd_yaw,
             arg_kp_pitch,
             arg_kd_pitch,
+            arg_dz_yaw,
+            arg_dz_pitch,
             # px3 params
             arg_serial,
             arg_baudrate,
+            arg_pir_pin,
             # watch_node params
             arg_pir_debounce,
+            arg_rewake_delay,
             # nodes
             px2_node,
             watch_node,

@@ -11,6 +11,9 @@ struct CameraCalib {
   int calib_w = 0; // original calib image size
   int calib_h = 0;
   bool loaded = false;
+  // キャリブレーション時と実行時で縦横比が違う（例: 4:3 で撮って 16:9 で使う）。
+  // その場合は単純な拡大縮小では換算できず、角度がずれる。
+  bool aspect_mismatch = false;
 };
 
 inline bool loadCalibrationFile(const std::string& yaml_path, int runtime_w, int runtime_h,
@@ -43,6 +46,8 @@ inline bool loadCalibrationFile(const std::string& yaml_path, int runtime_w, int
   out.D = Draw.clone();
   out.calib_w = w;
   out.calib_h = h;
+  out.aspect_mismatch =
+      (static_cast<long long>(runtime_w) * h != static_cast<long long>(runtime_h) * w);
   out.loaded = true;
   return true;
 }

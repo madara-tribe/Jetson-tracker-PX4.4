@@ -1,0 +1,3198 @@
+diff -ruN a/.clang-format b/.clang-format
+--- a/.clang-format	1970-01-01 00:00:00.000000000 +0000
++++ b/.clang-format	2026-11-18 23:52:09.265065232 +0000
+@@ -0,0 +1,9 @@
++# 2026-11-19 r2: リポジトリに .clang-format が無かったので、元のコード（15 ファイル）が
++# 差分 0 になる設定を推定して置いたもの。以前作った .clang-format が手元にあれば、
++# そちらで置き換えること（そちらが正）。
++BasedOnStyle: LLVM
++ColumnLimit: 100
++PointerAlignment: Left
++AllowShortFunctionsOnASingleLine: None
++AllowShortIfStatementsOnASingleLine: Never
++SpacesBeforeTrailingComments: 1
+diff -ruN a/.github/workflows/px-parameter-contract.yml b/.github/workflows/px-parameter-contract.yml
+--- a/.github/workflows/px-parameter-contract.yml	2026-11-18 03:31:42.000000000 +0000
++++ b/.github/workflows/px-parameter-contract.yml	2026-11-18 22:39:55.407916159 +0000
+@@ -1,7 +1,7 @@
+ name: PX Parameter Contract Checks
+ 
+ # PX4.4: launch ファイルと C++ の declare_parameter が一致しているかをチェック。
+-#        max_step_deg は調整で頻繁に変えるため、既定値の差を許可（チェック対象外）。
++#        px3 は px2 と同じプロセスで動き、px2 経由でパラメータを受け取る（--allow-embedded-route）。
+ 
+ on:
+   pull_request:
+@@ -53,9 +53,8 @@
+           set +e
+           uv run python ci_checks/check_px_parameter_contract.py \
+             --repo-root . \
+-            --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg" \
++            --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg,pir_pin" \
+             --allow-default-override px2.device_path \
+-            --allow-default-override px2.max_step_deg \
+             --report /tmp/px-parameter-contract-report.md
+           status=$?
+           echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+diff -ruN a/.gitignore b/.gitignore
+--- a/.gitignore	1970-01-01 00:00:00.000000000 +0000
++++ b/.gitignore	2026-11-18 23:52:09.267529566 +0000
+@@ -0,0 +1,28 @@
++# 2026-11-19 r2: リポジトリに .gitignore が無かったので追加。
++# 以前作った .gitignore が手元にあれば、そちらで置き換えること（そちらが正）。
++
++# ---- ビルドの出力（colcon）----
++SeamlessTrack/build/
++SeamlessTrack/install/
++SeamlessTrack/log/
++
++# ---- 重いファイル（git に入れない。README の「重いファイル」を参照）----
++SeamlessTrack/src/px2/weights/*.onnx
++SeamlessTrack/engines/
++SeamlessTrack/trt_cache/
++Docker/third_party/*.tgz
++
++# ---- 実行時にできるもの ----
++SeamlessTrack/frames/
++SeamlessTrack/src/px2/data/*.png
++SeamlessTrack/bench/results/
++
++# ---- Python / ツール ----
++__pycache__/
++*.pyc
++.venv/
++.ruff_cache/
++.pytest_cache/
++
++# ---- OS ----
++.DS_Store
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-18 03:31:42.000000000 +0000
++++ b/README.md	2026-11-19 01:11:01.258049005 +0000
+@@ -109,7 +109,7 @@
+ 
+ - Stop with **Ctrl+C**. Do not use Ctrl+Z: the suspended process keeps the camera and serial port open.
+ - The system waits (WATCH) until the PIR sensor fires, then switches to detection and tracking (DETECT).
+-- Detection images are saved to `SeamlessTrack/install/px2/share/px2/data/`.
++- Detection images are saved to `SeamlessTrack/frames/` only when `SAVE_FRAMES=true` (change with `SAVE_DIR`).
+ - The log shows `px2: inference provider = trt` and a per-second `px2[timing] ... infer=...ms` line.
+ 
+ | Variable | Meaning | Default |
+@@ -117,8 +117,19 @@
+ | `PROVIDER` | `trt` (TensorRT) / `cpu` (ONNX Runtime) | `trt` |
+ | `TRT_FP16` | `true` = FP16 / `false` = FP32 | `true` |
+ | `TRT_ENGINE` | Engine file to use (empty = pick from `engines/` automatically) | empty |
+-| `SAVE_FRAMES` | Save detection images | `true` |
+-| `TIMING_CSV` | Write per-frame timings to a CSV file | empty |
++| `SAVE_FRAMES` | Save each detected frame as a PNG (one per frame; slows the loop) | `false` |
++| `TIMING_CSV` | Write per-frame timings, errors, and commanded angles to a CSV file | empty |
++| `KP` / `KD` | PD gains (both axes). `KP` acts as an integral gain and `KD` as a proportional gain. Measure the delay before raising `KP` | `0.3` / `0.3` |
++| `MAX_STEP` | Largest move per frame (degrees) | `3.0` |
++| `DEAD_ZONE` | Dead zone (degrees). Keep at 1.0 or more while commands are integers | `1.0` |
++| `LOST_TIMEOUT` | Seconds without a detection before returning to WATCH | `1.0` |
++| `ACTIVE_W` / `ACTIVE_H` / `ACTIVE_FPS` | Camera capture mode | `1920` / `1080` / `30.0` |
++| `CAP_BUFFER` | Frames buffered by the camera driver (0 = leave as is). Use 2 if the frame rate halves | `1` |
++| `LATEST_FRAME` | `true` = read the camera in a separate thread and use only the newest frame | `true` |
++| `SAVE_DIR` | Where detected frames are saved | `SeamlessTrack/frames` |
++| `MODEL_PATH` / `CALIB_PATH` | Model and calibration files (empty = `install/px2/share/px2/weights/`) | empty |
++| `SERVO_LAG_MS` | Servo lag in ms, used for the `servo_at_capture_*` CSV columns | `0.0` |
++| `REWAKE_DELAY_MS` | After returning to WATCH, do not wake again for this long even if the PIR stays HIGH | `1000` |
+ 
+ To test the camera, inference and servos without the PIR sensor, see "Checking the wiring" in [docs/WIRING.md](docs/WIRING.md).
+ 
+@@ -162,7 +173,7 @@
+ |---|---|
+ | `cpp-ci` | clang-format (v14) on `SeamlessTrack/src` |
+ | `python-lint` | ruff format / lint and unit tests |
+-| `px-parameter-contract` | Launch-file and C++ parameters stay in sync (`max_step_deg` is excluded because it is tuned often) |
++| `px-parameter-contract` | Launch-file and C++ parameters stay in sync |
+ | `colcon-build` | ROS 2 build. **Manual trigger only**, because ONNX Runtime can no longer be downloaded from GitHub |
+ 
+ Run the same checks locally: `./ci_checks/run_local.sh` (`--fix` applies formatting). Requires uv and clang-format 14 (`pip install clang-format==14.0.6`).
+@@ -177,6 +188,10 @@
+ | [docs/01_conversation_log.md](docs/01_conversation_log.md) | Build log: what was done, what went wrong, how it was fixed |
+ | [docs/02_experiment_data.md](docs/02_experiment_data.md) | Environment, benchmark results, error list |
+ | [docs/03_commands.md](docs/03_commands.md) | Command reference by task |
++| [docs/04_fix_log_2026-11-19.md](docs/04_fix_log_2026-11-19.md) | Record of fixes F01–F27: behavior changes, where each fix is, checklist (Japanese) |
++| [docs/04_fix_patch_2026-11-19.patch](docs/04_fix_patch_2026-11-19.patch) | Diff against the 2026-11-18 code (fixes F01–F27) |
++| [docs/05_roadmap_2026-11-19.md](docs/05_roadmap_2026-11-19.md) | Improvement roadmap: issues, done and open fixes, next stages (Japanese) |
++| [docs/06_review_of_fixes_F01-F17.md](docs/06_review_of_fixes_F01-F17.md) | Review of fixes F01–F17 and how each point was handled (Japanese) |
+ | [PX4.3_archive/README.md](PX4.3_archive/README.md) | Files moved out in PX4.4 and how to restore them |
+ 
+ The documents in `docs/` are written in Japanese.
+diff -ruN a/README_jp.md b/README_jp.md
+--- a/README_jp.md	2026-11-18 03:31:42.000000000 +0000
++++ b/README_jp.md	2026-11-19 01:11:01.257819560 +0000
+@@ -108,7 +108,7 @@
+ 
+ - 止めるときは **Ctrl+C**（Ctrl+Z は使わない。プロセスが残ってカメラを掴んだままになる）
+ - PIR が人を検知するまでは待機（WATCH）。検知すると推論・追尾（DETECT）に入る
+-- 検出画像は `SeamlessTrack/install/px2/share/px2/data/` に保存される
++- 検出画像は `SAVE_FRAMES=true` のときだけ `SeamlessTrack/frames/` に保存される（`SAVE_DIR` で変えられる）
+ - ログに `px2: inference provider = trt` と、1 秒ごとの `px2[timing] ... infer=...ms` が出る
+ 
+ | 変数 | 意味 | 既定 |
+@@ -116,8 +116,19 @@
+ | `PROVIDER` | `trt`（TensorRT）/ `cpu`（ONNX Runtime） | `trt` |
+ | `TRT_FP16` | `true`=FP16 / `false`=FP32 | `true` |
+ | `TRT_ENGINE` | 使うエンジン（空なら `engines/` を自動で使う） | 空 |
+-| `SAVE_FRAMES` | 検出画像を保存する | `true` |
+-| `TIMING_CSV` | 1 フレームごとの時間を CSV に書く | 空 |
++| `SAVE_FRAMES` | 検出したフレームを PNG で保存する（1 フレーム 1 枚。ループが遅くなる） | `false` |
++| `TIMING_CSV` | 1 フレームごとの時間・誤差・指令角を CSV に書く | 空 |
++| `KP` / `KD` | PD ゲイン（両軸共通）。`KP` は実質的に積分、`KD` は実質的に比例として効く。`KP` を上げる前に遅延を測ること | `0.3` / `0.3` |
++| `MAX_STEP` | 1 フレームで動かす最大量（度） | `3.0` |
++| `DEAD_ZONE` | 死帯（度）。指令が整数のうちは 1.0 未満にしない | `1.0` |
++| `LOST_TIMEOUT` | 見失ってから WATCH に戻るまでの時間（秒） | `1.0` |
++| `ACTIVE_W` / `ACTIVE_H` / `ACTIVE_FPS` | カメラの取り込み | `1920` / `1080` / `30.0` |
++| `CAP_BUFFER` | カメラ側に溜めるフレーム数（0 = 指定しない）。fps が半分になるカメラでは 2 | `1` |
++| `LATEST_FRAME` | `true` = 別スレッドでカメラを読み続け、最新の 1 枚だけを使う | `true` |
++| `SAVE_DIR` | 検出画像の保存先 | `SeamlessTrack/frames` |
++| `MODEL_PATH` / `CALIB_PATH` | モデルと校正ファイル（空なら `install/px2/share/px2/weights/`） | 空 |
++| `SERVO_LAG_MS` | サーボが指令に追いつくまでの遅れ（ms）。CSV の `servo_at_capture_*` に使う | `0.0` |
++| `REWAKE_DELAY_MS` | WATCH に戻ってから、PIR が HIGH のままでも再起動しない時間（ms） | `1000` |
+ 
+ PIR を使わずにカメラ・推論・サーボだけ確かめるときは、[docs/WIRING.md](docs/WIRING.md) の「配線の確認手順」を参照。
+ 
+@@ -159,7 +170,7 @@
+ |---|---|
+ | `cpp-ci` | clang-format（14）のチェック |
+ | `python-lint` | ruff の整形・lint と unit test |
+-| `px-parameter-contract` | launch と C++ のパラメータが一致しているか（`max_step_deg` は調整用なので対象外） |
++| `px-parameter-contract` | launch と C++ のパラメータが一致しているか |
+ | `colcon-build` | ROS 2 のビルド。**ONNX Runtime が GitHub から消えているため、手動実行だけ** |
+ 
+ 手元で同じチェック: `./ci_checks/run_local.sh`（`--fix` で整形を自動修正）。uv と clang-format 14 が必要（Mac での実行を想定）。
+@@ -174,4 +185,8 @@
+ | [docs/01_conversation_log.md](docs/01_conversation_log.md) | 構築ログ（何をして、何が起きて、どう直したか） |
+ | [docs/02_experiment_data.md](docs/02_experiment_data.md) | 環境・計測結果・エラー一覧 |
+ | [docs/03_commands.md](docs/03_commands.md) | 用途別のコマンド集 |
++| [docs/04_fix_log_2026-11-19.md](docs/04_fix_log_2026-11-19.md) | 修正 F01〜F27 の記録（動きが変わった点、修正箇所、確認項目） |
++| [docs/04_fix_patch_2026-11-19.patch](docs/04_fix_patch_2026-11-19.patch) | 2026-11-18 のコードに対する差分（修正 F01〜F27） |
++| [docs/05_roadmap_2026-11-19.md](docs/05_roadmap_2026-11-19.md) | 改良ロードマップ（課題、対応済み・未対応の修正、今後の段階） |
++| [docs/06_review_of_fixes_F01-F17.md](docs/06_review_of_fixes_F01-F17.md) | 修正 F01〜F17 のレビュー結果と、その対応 |
+ | [PX4.3_archive/README.md](PX4.3_archive/README.md) | 使わなくなったものと戻し方 |
+diff -ruN a/SeamlessTrack/bench/summarize.py b/SeamlessTrack/bench/summarize.py
+--- a/SeamlessTrack/bench/summarize.py	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/bench/summarize.py	2026-11-18 23:52:39.337277197 +0000
+@@ -6,14 +6,22 @@
+ 
+ - offline_*.csv : bench_yolo の結果（同じ画像で N 回）
+ - live_*.csv    : launch_px.sh 実行中の 1 フレーム 1 行（DETECT 中のみ）。
+-                  モード切替直後の 1 フレーム（first_frame=1）は除外する
++                  時間の集計では、DETECT に入った最初の 1 フレーム（first_frame=1）を除外する
++                  （loop_ms に WATCH の待ち時間が入るため）。
++                  追従の集計では除外しない（検出できなかったフレームも数える）
+ - tegrastats.log: あれば CPU / GPU 使用率・温度・電力の平均を出す
++- live_*.csv に誤差の列（detected, yaw_err_deg, ... 2026-11-19 追加）があれば、
++  追従の数字（検出率、誤差の平均と 95% 値、指令の変化回数、取りこぼしの回数、
++  WATCH に戻った回数、フレームの古さ）も出す。
++  誤差は検出できたフレームだけで計算するので、必ず検出率と一緒に見ること。
++  --distance-m で、度を cm に直すときの距離を指定する（既定 5 m）
+ --baseline を付けると、同じ種類（offline / live）の cpu の値と比べた速度倍率を出す。
+ """
+ 
+ import argparse
+ import csv
+ import glob
++import math
+ import os
+ import re
+ import statistics
+@@ -29,11 +37,11 @@
+     return v[lo] + (v[hi] - v[lo]) * (k - lo)
+ 
+ 
+-def load(path):
++def load(path, keep_first_frame=False):
+     with open(path, newline="") as f:
+         rows = list(csv.DictReader(f))
+     kind = "live" if os.path.basename(path).startswith("live_") else "offline"
+-    if kind == "live":
++    if kind == "live" and not keep_first_frame:
+         rows = [r for r in rows if r.get("first_frame", "0") != "1"]
+     label = os.path.basename(path)[len(kind) + 1 : -4]
+     return kind, label, rows
+@@ -70,6 +78,81 @@
+     return s
+ 
+ 
++def tracking_for(rows, distance_m):
++    """追従の数字。誤差の列が無い古い CSV では None を返す。
++
++    rows は first_frame=1 の行も含む、すべての行。
++    """
++    if not rows or "yaw_err_deg" not in rows[0]:
++        return None
++    det = [r for r in rows if r.get("detected") == "1"]
++    yaw = [abs(x) for x in col(det, "yaw_err_deg")]
++    pitch = [abs(x) for x in col(det, "pitch_err_deg")]
++    # 時間は、DETECT に入った最初のフレームを除いて数える（loop_ms に WATCH の待ちが入るため）
++    timed = [r for r in rows if r.get("first_frame", "0") != "1"]
++    seconds = sum(col(timed, "loop_ms")) / 1000.0
++
++    has_session = "session_id" in rows[0]
++
++    def same_session(a, b):
++        return (not has_session) or a.get("session_id") == b.get("session_id")
++
++    # サーボに実際に送られるのは四捨五入した整数。その値が変わった回数を数える（横と縦）
++    def changes(name):
++        vals = [round(x) for x in col(rows, name)]
++        return sum(1 for a, b in zip(vals, vals[1:], strict=False) if a != b)
++
++    # 取りこぼし: 検出あり → 検出なし に変わった回数（1 フレームだけでも 1 回）。
++    # WATCH に戻った回数とは別物
++    drops = sum(
++        1
++        for a, b in zip(rows, rows[1:], strict=False)
++        if same_session(a, b) and a.get("detected") == "1" and b.get("detected") != "1"
++    )
++    # WATCH に戻った回数: to_watch 列（2026-11-19 r2 で追加）。無ければ None
++    to_watch = int(sum(col(rows, "to_watch"))) if "to_watch" in rows[0] else None
++    sessions = len({r.get("session_id") for r in rows}) if has_session else None
++    age = col(timed, "frame_age_ms")
++
++    def cm(deg):
++        return math.tan(math.radians(deg)) * distance_m * 100.0
++
++    def mean(v):
++        return statistics.mean(v) if v else float("nan")
++
++    def per_s(n):
++        return (n / seconds) if seconds > 0 else float("nan")
++
++    return {
++        "n": len(rows),
++        "n_det": len(det),
++        "det_rate": len(det) / len(rows),
++        "hz": per_s(len(timed)),
++        "yaw_mean": mean(yaw),
++        "yaw_p95": pct(yaw, 95),
++        "yaw_mean_cm": cm(mean(yaw)) if yaw else float("nan"),
++        "yaw_p95_cm": cm(pct(yaw, 95)) if yaw else float("nan"),
++        "pitch_mean": mean(pitch),
++        "changes_x_per_s": per_s(changes("cmd_x_deg")),
++        "changes_y_per_s": per_s(changes("cmd_y_deg")),
++        "drops": drops,
++        "to_watch": to_watch,
++        "sessions": sessions,
++        "age_mean": mean(age) if age else None,
++        "age_p95": pct(age, 95) if age else None,
++    }
++
++
++def collect_tracking(d, distance_m):
++    res = {}
++    for p in sorted(glob.glob(os.path.join(d, "live_*.csv"))):
++        _, label, rows = load(p, keep_first_frame=True)
++        t = tracking_for(rows, distance_m)
++        if t:
++            res[label] = t
++    return res
++
++
+ def collect(d):
+     res = {}
+     for p in sorted(glob.glob(os.path.join(d, "*.csv"))):
+@@ -122,6 +205,9 @@
+     ap = argparse.ArgumentParser()
+     ap.add_argument("dir")
+     ap.add_argument("--baseline", help="Step 1 の結果フォルダ（cpu の値と比べる）")
++    ap.add_argument(
++        "--distance-m", type=float, default=5.0, help="誤差を cm に直すときの距離（既定 5 m）"
++    )
+     a = ap.parse_args()
+ 
+     res = collect(a.dir)
+@@ -179,6 +265,48 @@
+             out.append("| " + " | ".join(cells) + " |")
+         out.append("")
+ 
++    track = collect_tracking(a.dir, a.distance_m)
++    if track:
++        out.append(
++            f"## 追従（実機、検出できたフレームの誤差。cm は {a.distance_m:g} m 先での値）\n"
++        )
++        head = [
++            "label",
++            "n",
++            "検出率",
++            "ループ Hz",
++            "横の誤差 平均 度 (cm)",
++            "横の誤差 95% 度 (cm)",
++            "縦の誤差 平均 度",
++            "指令変化 / 秒（横 / 縦）",
++            "取りこぼし 回",
++            "DETECT に入った 回",
++            "WATCH に戻った 回",
++            "フレームの古さ ms（平均 / 95%）",
++        ]
++        out.append("| " + " | ".join(head) + " |")
++        out.append("|" + "---|" * len(head))
++
++        def opt(v):
++            return "-" if v is None else str(v)
++
++        for lbl, t in track.items():
++            age = "-" if t["age_mean"] is None else f"{t['age_mean']:.1f} / {t['age_p95']:.1f}"
++            out.append(
++                f"| {lbl} | {t['n']} | {t['det_rate'] * 100:.0f}% | {t['hz']:.1f} "
++                f"| {t['yaw_mean']:.2f} ({t['yaw_mean_cm']:.0f}) "
++                f"| {t['yaw_p95']:.2f} ({t['yaw_p95_cm']:.0f}) "
++                f"| {t['pitch_mean']:.2f} "
++                f"| {t['changes_x_per_s']:.1f} / {t['changes_y_per_s']:.1f} "
++                f"| {t['drops']} | {opt(t['sessions'])} | {opt(t['to_watch'])} | {age} |"
++            )
++        out.append("")
++        out.append(
++            "誤差は、検出できたフレームだけで計算している。見失っている間のずれは入らないので、"
++            "検出率と一緒に見ること。「取りこぼし」は 1 フレームだけ検出が途切れた場合も 1 回と数える。"
++            "「フレームの古さ」は、撮ってから処理を始めるまでの時間（LATEST_FRAME=true のとき）。\n"
++        )
++
+     if base:
+         out.append(f"基準（CPU）: {a.baseline}\n")
+     ts = tegrastats(a.dir)
+diff -ruN a/SeamlessTrack/launch_px.sh b/SeamlessTrack/launch_px.sh
+--- a/SeamlessTrack/launch_px.sh	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/launch_px.sh	2026-11-18 23:52:09.252284528 +0000
+@@ -9,16 +9,52 @@
+ #
+ #  WATCH        : PIR の検知（/px_wakeup）を待つ。カメラの映像は読み捨て
+ #  DETECT_TRACK : YOLO11 推論 → PD 制御 → サーボ指令。検出画像は
+-#                 install/px2/share/px2/data/ に保存（SAVE_FRAMES=true のとき）
++#                 frames/ に保存（SAVE_FRAMES=true のとき。SAVE_DIR で変えられる）
++#
++#  調整用の変数（どれも省略できる。例: KD=0 DEAD_ZONE=1.5 ./launch_px.sh）
++#    KP / KD        PD ゲイン（両軸共通）。この制御は「位置に足していく」形なので、
++#                   KP は実質的に積分、KD は実質的に比例のゲインとして効く。
++#                   KP は遅延が長いほど行き過ぎる。上げる前に遅延を測ること
++#                   （目安: 遅延 100 ms 以下なら 0.4 まで。165 ms を超えるなら 0.2）
++#                   KD は 1 フレームあたりの誤差の変化に掛ける。0〜0.6 では差が小さい
++#    MAX_STEP       1 フレームで動かす最大量（度）
++#    DEAD_ZONE      死帯（度、両軸共通）
++#    LOST_TIMEOUT   見失ってから WATCH に戻るまでの時間（秒）
++#    ACTIVE_W / ACTIVE_H / ACTIVE_FPS   カメラの取り込み（例: ACTIVE_W=1280 ACTIVE_H=720）
++#    CAP_BUFFER     カメラ側に溜めるフレーム数（1 = 古いフレームを溜めない。0 = 指定しない）
++#                   カメラによっては 1 で fps が半分になる（計測 CSV の loop_ms が約 66 ms）。
++#                   そのときは 2 にする
++#    LATEST_FRAME   true = 別スレッドでカメラを読み続け、最新の 1 枚だけを使う（既定）
++#                   false = 以前と同じ読み方
++#    SERVO_LAG_MS   サーボが指令に追いつくまでの遅れ（ms）。CSV の servo_at_capture_* に効く
++#    REWAKE_DELAY_MS  WATCH に戻ってから、PIR が HIGH のままでも再起動しない時間（ms）
++#    SAVE_DIR       検出画像の保存先（既定は このスクリプトの場所/frames）
++#    MODEL_PATH / CALIB_PATH  モデルと校正ファイル（空なら install/px2/share/px2/weights/）
+ # ============================================================
+ set -e
+ 
+ PROVIDER="${PROVIDER:-trt}"          # trt | cpu
+ TRT_FP16="${TRT_FP16:-true}"          # TensorRT の精度: true=FP16 / false=FP32
+ TRT_ENGINE="${TRT_ENGINE:-}"          # 使う .engine（空なら engines/ を探し、無ければ px2 が作る）
+-SAVE_FRAMES="${SAVE_FRAMES:-true}"    # 計測時は false（JPEG 保存が時間を食うため）
++SAVE_FRAMES="${SAVE_FRAMES:-false}"   # true にすると検出フレームごとに PNG を 1 枚保存（ループが遅くなる）
+ TIMING_CSV="${TIMING_CSV:-}"          # 計測 CSV の出力先（空なら書かない）
++
++KP="${KP:-0.3}"
++KD="${KD:-0.3}"
++MAX_STEP="${MAX_STEP:-3.0}"
++DEAD_ZONE="${DEAD_ZONE:-1.0}"
++LOST_TIMEOUT="${LOST_TIMEOUT:-1.0}"
++ACTIVE_W="${ACTIVE_W:-1920}"
++ACTIVE_H="${ACTIVE_H:-1080}"
++ACTIVE_FPS="${ACTIVE_FPS:-30.0}"
++CAP_BUFFER="${CAP_BUFFER:-1}"
++LATEST_FRAME="${LATEST_FRAME:-true}"
++SERVO_LAG_MS="${SERVO_LAG_MS:-0.0}"
++REWAKE_DELAY_MS="${REWAKE_DELAY_MS:-1000}"
++MODEL_PATH="${MODEL_PATH:-}"
++CALIB_PATH="${CALIB_PATH:-}"
+ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++SAVE_DIR="${SAVE_DIR:-${SCRIPT_DIR}/frames}"
+ 
+ # make_engines.sh で作ったエンジンがあれば自動で使う
+ if [[ "${PROVIDER}" == "trt" && -z "${TRT_ENGINE}" ]]; then
+@@ -30,34 +66,45 @@
+   fi
+ fi
+ [[ -n "${TRT_ENGINE}" ]] && echo "INFO: TensorRT engine = ${TRT_ENGINE}"
++echo "INFO: control KP=${KP} KD=${KD} MAX_STEP=${MAX_STEP} DEAD_ZONE=${DEAD_ZONE} LOST_TIMEOUT=${LOST_TIMEOUT}"
++echo "INFO: camera ${ACTIVE_W}x${ACTIVE_H} @ ${ACTIVE_FPS} buffer=${CAP_BUFFER} latest_frame=${LATEST_FRAME} save_frames=${SAVE_FRAMES}"
+ 
+ # ros2 launch は空の値（name:=）を受け付けないので、値があるときだけ渡す
+ EXTRA_ARGS=()
+ [[ -n "${TIMING_CSV}" ]] && EXTRA_ARGS+=("timing_csv:=${TIMING_CSV}")
+ [[ -n "${TRT_ENGINE}" ]] && EXTRA_ARGS+=("trt_engine:=${TRT_ENGINE}")
++[[ -n "${MODEL_PATH}" ]] && EXTRA_ARGS+=("model_path:=${MODEL_PATH}")
++[[ -n "${CALIB_PATH}" ]] && EXTRA_ARGS+=("calib_path:=${CALIB_PATH}")
+ 
+ ros2 launch px3_launch px3_system_launch.py \
+   camera_path:=/dev/video/pir_camera \
+   serial_port:=/dev/ttyACM0 \
+   baudrate:=115200 \
++  pir_pin:=2 \
+   x_center_deg:=90.0 \
+   y_center_deg:=90.0 \
+   xmax:=150.0 xmin:=30.0 \
+   ymax:=130.0 ymin:=50.0 \
+   save_frames:=${SAVE_FRAMES} \
+   watch_fps:=2.0 \
+-  active_width:=1920 \
+-  active_height:=1080 \
+-  active_fps:=30.0 \
+-  lost_max_frames:=30 \
++  active_width:=${ACTIVE_W} \
++  active_height:=${ACTIVE_H} \
++  active_fps:=${ACTIVE_FPS} \
++  capture_buffer_size:=${CAP_BUFFER} \
++  capture_thread:=${LATEST_FRAME} \
++  save_dir:=${SAVE_DIR} \
++  servo_lag_ms:=${SERVO_LAG_MS} \
++  rewake_delay_ms:=${REWAKE_DELAY_MS} \
++  lost_timeout_s:=${LOST_TIMEOUT} \
+   conf_threshold:=0.25 \
+-  max_step_deg:=3 \
+-  kp_yaw:=0.3 \
+-  kd_yaw:=0.2 \
+-  kp_pitch:=0.3 \
+-  kd_pitch:=0.2 \
++  max_step_deg:=${MAX_STEP} \
++  kp_yaw:=${KP} \
++  kd_yaw:=${KD} \
++  kp_pitch:=${KP} \
++  kd_pitch:=${KD} \
++  dead_zone_yaw_deg:=${DEAD_ZONE} \
++  dead_zone_pitch_deg:=${DEAD_ZONE} \
+   ort_provider:=${PROVIDER} \
+   trt_fp16:=${TRT_FP16} \
+   trt_cache_dir:=${SCRIPT_DIR}/trt_cache/$([[ "${TRT_FP16}" == "true" ]] && echo fp16 || echo fp32) \
+   "${EXTRA_ARGS[@]}"
+-
+diff -ruN a/SeamlessTrack/src/px2/include/control/axis_pd_controller.hpp b/SeamlessTrack/src/px2/include/control/axis_pd_controller.hpp
+--- a/SeamlessTrack/src/px2/include/control/axis_pd_controller.hpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/control/axis_pd_controller.hpp	2026-11-18 23:52:09.252443172 +0000
+@@ -57,22 +57,50 @@
+     prev_err_deg = 0.0;
+   }
+ 
+-  // updateFromErrorRad()の「誤差計算(副作用なし)」と「状態コミット(副作用あり)」を分離
++  // 今のサーボ角（絶対角）から再開する。再検出のたびに中央へ戻らないようにするため。
++  void resetAtServoDeg(double servo_deg) {
++    pos_deg = std::clamp(servo_deg, min_deg, max_deg) - center_deg;
++    prev_err_deg = 0.0;
++  }
++
++  // 今の指令角（絶対角）。commit() の戻り値と同じ値。
++  double servoDeg() const {
++    return std::clamp(center_deg + pos_deg, min_deg, max_deg);
++  }
++
+   double errorDeg(double err_rad) const {
+     return err_rad * 180.0 / PX_PI;
+   }
+ 
+-  // dead zone外と判定した時だけ呼ぶ。pos_deg/prev_err_degを実際に進める。
+-  double commit(double err_deg, double dt = 1.0) {
+-    const double d_term = (dt > 0.0) ? Kd * (err_deg - prev_err_deg) / dt : 0.0;
++  // 死帯の中で動かさなかったフレームでも、誤差だけは覚えておく。
++  // （覚えないと、死帯を出た最初のフレームで「古い誤差との差」が D 項に入って跳ねる）
++  void observe(double err_deg) {
++    prev_err_deg = err_deg;
++  }
++
++  // 死帯の外と判定したときだけ呼ぶ。pos_deg / prev_err_deg を進める。
++  //   delta = Kp * err + Kd * (err - 前フレームの err)
++  //
++  // この制御は「位置に足していく」形なので、位置で見ると次のように効く。
++  //   Kp : 実質的に積分のゲイン。サーボが動き終わるまで同じ誤差を毎フレーム足すので、
++  //        遅延が長いほど行き過ぎる。上げる前に遅延を測ること
++  //        （目安: 遅延 100 ms 以下なら 0.4 まで、165 ms を超えるなら 0.2。モデルでの見積もり）
++  //   Kd : 実質的に比例のゲイン。0〜0.6 の範囲では追従誤差への影響は小さい
++  //
++  // Kd は「1 フレームあたりの誤差の変化」に掛ける（dt では割らない）。
++  //   以前は dt で割っていたため、30 Hz では Kd=0.2 が実質 6.0 になり、
++  //   ループが速いほど強くなっていた。
++  // use_d=false: D 項を使わない（DETECT に入った最初のフレーム用）。
++  double commit(double err_deg, bool use_d = true) {
++    const double d_term = use_d ? Kd * (err_deg - prev_err_deg) : 0.0;
+ 
+     double delta_deg = Kp * err_deg + d_term;
+     delta_deg = std::clamp(delta_deg, -max_step_deg, max_step_deg);
+ 
+-    pos_deg += delta_deg; // ← dead zone内では呼ばれない = 実送信角度と一致し続ける
++    // 可動範囲の端で pos_deg だけが増え続けないよう、範囲内に収める（ワインドアップ防止）
++    pos_deg = std::clamp(pos_deg + delta_deg, min_deg - center_deg, max_deg - center_deg);
+     prev_err_deg = err_deg;
+-    const double servo = center_deg + pos_deg;
+-    return std::clamp(servo, min_deg, max_deg);
++    return center_deg + pos_deg;
+   }
+ };
+ 
+diff -ruN a/SeamlessTrack/src/px2/include/control/command_history.hpp b/SeamlessTrack/src/px2/include/control/command_history.hpp
+--- a/SeamlessTrack/src/px2/include/control/command_history.hpp	1970-01-01 00:00:00.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/control/command_history.hpp	2026-11-18 23:52:47.094580348 +0000
+@@ -0,0 +1,71 @@
++#pragma once
++// ============================================================
++//  command_history.hpp — サーボへの指令角の履歴
++//
++//  ねらい: 「フレームを撮った時刻に、サーボがどこを向いていたか」を引けるようにする。
++//          撮影時のサーボ角 + 画像上の誤差 = 人の絶対角。
++//          段階 11（予測と追跡）で、この絶対角を状態にして先を狙う。
++//
++//  注意: サーボは位置を読めないので、ここにあるのは「指令した角度」。
++//        実際の角度は、指令より少し遅れる。その遅れは at() に渡す時刻をずらして補う
++//        （px2 のパラメータ servo_lag_ms）。
++//  スレッド: push() と at() は同じスレッド（px2 の処理スレッド）から呼ぶこと。
++// ============================================================
++#include <chrono>
++#include <cstddef>
++#include <deque>
++
++namespace control {
++
++class CommandHistory {
++public:
++  using Clock = std::chrono::steady_clock;
++
++  struct Sample {
++    Clock::time_point t;
++    double x_deg;
++    double y_deg;
++  };
++
++  explicit CommandHistory(double keep_seconds = 2.0, std::size_t max_samples = 512)
++      : keep_(std::chrono::duration_cast<Clock::duration>(
++            std::chrono::duration<double>(keep_seconds))),
++        max_samples_(max_samples) {
++  }
++
++  // 指令を送った時刻と角度を残す。時刻は前回以降であること。
++  void push(Clock::time_point t, double x_deg, double y_deg) {
++    samples_.push_back({t, x_deg, y_deg});
++    // 古いものを捨てる。ただし最後の 1 件は必ず残す（長く動かなかったときも引けるように）
++    while (samples_.size() > 1 && (samples_.size() > max_samples_ || t - samples_[1].t > keep_)) {
++      samples_.pop_front();
++    }
++  }
++
++  // 時刻 t の時点で有効だった指令（t 以前でいちばん新しいもの）。
++  // t が履歴より前なら、いちばん古いものを返す。履歴が空なら false。
++  bool at(Clock::time_point t, double& x_deg, double& y_deg) const {
++    if (samples_.empty())
++      return false;
++    const Sample* best = &samples_.front();
++    for (const auto& s : samples_) {
++      if (s.t > t)
++        break;
++      best = &s;
++    }
++    x_deg = best->x_deg;
++    y_deg = best->y_deg;
++    return true;
++  }
++
++  std::size_t size() const {
++    return samples_.size();
++  }
++
++private:
++  Clock::duration keep_;
++  std::size_t max_samples_;
++  std::deque<Sample> samples_;
++};
++
++} // namespace control
+diff -ruN a/SeamlessTrack/src/px2/include/inference.h b/SeamlessTrack/src/px2/include/inference.h
+--- a/SeamlessTrack/src/px2/include/inference.h	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/inference.h	2026-11-18 23:50:49.234577122 +0000
+@@ -11,6 +11,7 @@
+ // --- Standard library ---
+ #include <atomic>
+ #include <chrono>
++#include <cstdint>
+ #include <filesystem>
+ #include <fstream>
+ #include <memory>
+@@ -31,23 +32,30 @@
+ 
+ // --- Project ---
+ #include "control/axis_pd_controller.hpp"
++#include "control/command_history.hpp"
+ #include "vision/bbox_geometry.hpp"
+ #include "vision/camera_calibration.hpp"
+ #include "vision/capture_settings.hpp"
++#include "vision/latest_frame_grabber.hpp"
+ #include "yolo_inference.h"
+ 
+ namespace onnx_inference {
+ 
+-static constexpr const char* kPkgPath = "/ros2_ws/work/src/px2/";
+-
+ class OnnxInferenceNode : public rclcpp::Node {
+ public:
+   explicit OnnxInferenceNode();
+   ~OnnxInferenceNode() {
++    // 処理スレッドを先に止める（読み取りスレッドの結果を待っているため）。そのあと読み取りを止める
+     if (pipeline_thread_.joinable())
+       pipeline_thread_.join();
++    grabber_.stop();
+   }
+ 
++  // 同じプロセスに同居する px3 に渡すパラメータ。
++  // px3 は use_global_arguments(false) で作るので、launch の値は px3 に直接は届かない。
++  // launch → px2 → （この関数）→ px3 の順で渡す。
++  std::vector<rclcpp::Parameter> px3ParameterOverrides() const;
++
+ private:
+   enum class Mode { WATCH, DETECT_TRACK };
+   enum class Axis { YAW, PITCH };
+@@ -62,9 +70,18 @@
+   std::atomic<bool> wakeup_requested_{false};
+ 
+   // ===== Config / resources =====
+-  std::string pkg_path = kPkgPath;
++  // モデル・校正ファイル・検出画像の保存先。パラメータ model_path / calib_path / save_dir で
++  // 指定する。空のときは、インストール先の share/px2/weights/ と /tmp/px2_frames を使う。
++  // （以前は /ros2_ws/work/src/px2/ に固定で、コンテナの外では動かなかった）
++  std::string model_path_;
++  std::string calib_path_;
++  std::string save_dir_;
+   std::string device_path;
+   cv::VideoCapture cap_;
++  // カメラを別スレッドで読み続け、最新の 1 枚だけを使う（パラメータ capture_thread）
++  bool use_capture_thread_ = true;
++  vision::LatestFrameGrabber grabber_;
++  uint64_t grab_seq_ = 0; // 最後に受け取ったフレームの通し番号
+   std::unique_ptr<YoloDetect> yolo_;
+ 
+   // ===== Flow / state =====
+@@ -81,9 +98,21 @@
+   int active_width_ = 1920;
+   int active_height_ = 1080;
+   double active_fps_ = 30.0; // メンバ化: コンストラクタと enterDetectTrackMode で同じ値を使う
++  int capture_buffer_size_ = 1; // カメラ側に溜めるフレーム数（1 = 最新に近いフレームを使う）
+ 
+-  // COOLDOWN
+-  int no_det_frames_ = 0;
++  // 見失い判定（秒）。最後に検出した時刻からこの時間が過ぎたら WATCH に戻る。
++  // フレーム数ではなく時間で数えるので、ループの速さが変わっても同じ長さになる。
++  double lost_timeout_s_ = 1.0;
++  std::chrono::steady_clock::time_point last_det_t_;
++
++  // px3 に渡すだけの値（px2 自身は使わない）
++  std::string px3_serial_port_ = "/dev/ttyACM0";
++  int px3_baudrate_ = 115200;
++  int px3_pir_pin_ = 2;
++
++  // 要求した推論デバイス（"trt" など）。CPU に落ちたことを警告するために覚えておく
++  std::string requested_provider_;
++  bool provider_fell_back_ = false;
+ 
+   // Servo state
+   double servo_x_deg_ = 90.0;
+@@ -97,23 +126,32 @@
+ 
+   control::AxisPdController yaw_axis_;
+   control::AxisPdController pitch_axis_;
++  // 指令角の履歴。フレームを撮った時刻のサーボ角を引くために使う（段階 11 の準備）
++  control::CommandHistory cmd_history_;
++  // サーボが指令に追いつくまでの遅れ（ms）。履歴を引く時刻をこの分だけ前にずらす
++  double servo_lag_ms_ = 0.0;
+   vision::CameraCalib calib_;
+ 
+   // ===== Control params =====
+-  int lost_max_frames_ = 15;
+   bool save_frames_ = false;
++  // 死帯（度）。誤差がこの値より小さければ動かさない。
++  // サーボへの指令が整数（1° 刻み）のうちは 1.0 未満にしない。
++  double yaw_dead_zone_deg_ = 1.0;
++  double pitch_dead_zone_deg_ = 1.0;
+ 
+   bool first_detect_frame_{true}; // DETECT遷移直後の初回フレームフラグ
++  // 直前のフレームで検出できたか。できていなければ「前フレームとの差」が意味を持たないので
++  // D 項を使わない（DETECT に入った直後、見失ったあとの最初の検出）。
++  bool prev_frame_detected_{false};
+ 
+   // ===== 計測（timing_csv パラメータが空でなければ 1 フレーム 1 行を書き出す）=====
+   std::ofstream timing_csv_;
+   bool timing_fp16_ = false;
+   int timing_rows_ = 0;
++  int session_id_ = 0; // DETECT に入るたびに 1 増える（CSV の session_id 列）
+   std::chrono::steady_clock::time_point timing_t0_;
+   static constexpr double kMinBoxArea = 1.0;
+   static constexpr double kTargetYRatio = 0.5;
+-  static constexpr double kYawDeadZoneDeg = 2.0;   // 1.5 → 2.0
+-  static constexpr double kPitchDeadZoneDeg = 2.0; // 1.5 → 2.0
+ 
+   // ===== Main pipeline =====
+   void callbackInference();
+@@ -126,6 +164,9 @@
+   // 軸指定でPD制御を計算（yaw/pitch共通処理）
+   double computeAxisErrorDeg(Axis axis, const cv::Rect2d& box); // 戻り値: err_deg（副作用なし）
+   void publishState(float yaw_deg, float pitch_deg);
++  // 次のフレームを受け取る。戻り値 false = カメラが読めなくなった（ループを抜ける）。
++  // got=false は「まだ新しいフレームが無い」（WATCH 中、またはタイムアウト）。
++  bool nextFrame(cv::Mat& frame, std::chrono::steady_clock::time_point& t_capture, bool& got);
+   void saveFrameIfNeeded(const cv::Mat& frame, const cv::Rect2d& roi_img, int frame_id,
+                          const std::string& name_prefix);
+ };
+diff -ruN a/SeamlessTrack/src/px2/include/vision/camera_calibration.hpp b/SeamlessTrack/src/px2/include/vision/camera_calibration.hpp
+--- a/SeamlessTrack/src/px2/include/vision/camera_calibration.hpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/vision/camera_calibration.hpp	2026-11-18 22:51:03.056182180 +0000
+@@ -11,6 +11,9 @@
+   int calib_w = 0; // original calib image size
+   int calib_h = 0;
+   bool loaded = false;
++  // キャリブレーション時と実行時で縦横比が違う（例: 4:3 で撮って 16:9 で使う）。
++  // その場合は単純な拡大縮小では換算できず、角度がずれる。
++  bool aspect_mismatch = false;
+ };
+ 
+ inline bool loadCalibrationFile(const std::string& yaml_path, int runtime_w, int runtime_h,
+@@ -43,6 +46,8 @@
+   out.D = Draw.clone();
+   out.calib_w = w;
+   out.calib_h = h;
++  out.aspect_mismatch =
++      (static_cast<long long>(runtime_w) * h != static_cast<long long>(runtime_h) * w);
+   out.loaded = true;
+   return true;
+ }
+diff -ruN a/SeamlessTrack/src/px2/include/vision/capture_settings.hpp b/SeamlessTrack/src/px2/include/vision/capture_settings.hpp
+--- a/SeamlessTrack/src/px2/include/vision/capture_settings.hpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/vision/capture_settings.hpp	2026-11-18 22:36:22.834318929 +0000
+@@ -5,8 +5,10 @@
+ 
+ namespace vision::capture {
+ 
++// buffer_size: カメラ側に溜めるフレーム数。1 にすると古いフレームが溜まりにくい。
++//              0 以下なら指定しない（ドライバの既定値のまま）。
+ inline bool applyCameraSettingsToCap(cv::VideoCapture& cap, const rclcpp::Logger& logger, int width,
+-                                     int height, double fps) {
++                                     int height, double fps, int buffer_size = 0) {
+   if (!cap.isOpened()) {
+     RCLCPP_WARN(logger, "Camera is not opened. applyCameraSettingsToCap skipped.");
+     return false;
+@@ -20,12 +22,26 @@
+   if (height > 0)
+     cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+ 
++  bool buffer_ok = true;
++  if (buffer_size > 0)
++    buffer_ok = cap.set(cv::CAP_PROP_BUFFERSIZE, buffer_size);
++
+   const int rw = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
+   const int rh = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+   const double rfps = cap.get(cv::CAP_PROP_FPS);
+ 
+   RCLCPP_INFO(logger, "Camera settings: %dx%d @ %.2f (requested %dx%d @ %.2f)", rw, rh, rfps, width,
+               height, fps);
++  if (buffer_size > 0) {
++    if (buffer_ok) {
++      RCLCPP_INFO(logger, "Camera buffer size: %d", buffer_size);
++    } else {
++      RCLCPP_WARN(logger, "Camera buffer size %d was not accepted by the driver", buffer_size);
++    }
++  }
++  if (rw != width || rh != height) {
++    RCLCPP_WARN(logger, "Camera did not accept %dx%d (got %dx%d)", width, height, rw, rh);
++  }
+   return true;
+ }
+ 
+diff -ruN a/SeamlessTrack/src/px2/include/vision/latest_frame_grabber.hpp b/SeamlessTrack/src/px2/include/vision/latest_frame_grabber.hpp
+--- a/SeamlessTrack/src/px2/include/vision/latest_frame_grabber.hpp	1970-01-01 00:00:00.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/vision/latest_frame_grabber.hpp	2026-11-18 23:52:47.183745596 +0000
+@@ -0,0 +1,136 @@
++#pragma once
++// ============================================================
++//  latest_frame_grabber.hpp — カメラを別スレッドで読み続け、最新の 1 枚だけを渡す
++//
++//  ねらい: 推論が 1 フレームより長くかかっても、カメラ側に溜まった古いフレームを
++//          使わない。処理が終わった時点で「いちばん新しいフレーム」を受け取る。
++//
++//  - start() でスレッドが cap.read() を回し始める。stop() で止まる
++//  - waitNext() は、前回渡したものより新しいフレームが来るまで待つ
++//  - setDecode(false) の間は grab() だけ行う（JPEG の展開をしない）。
++//    WATCH 中の CPU 負荷を抑えつつ、カメラ側のバッファを空にし続けるため
++//  - スレッドが動いている間は、ほかのスレッドから cap を触らないこと
++// ============================================================
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <cstdint>
++#include <mutex>
++#include <thread>
++#include <utility>
++
++#include <opencv2/core.hpp>
++#include <opencv2/videoio.hpp>
++
++namespace vision {
++
++class LatestFrameGrabber {
++public:
++  using Clock = std::chrono::steady_clock;
++  enum class Result { kFrame, kTimeout, kEnded };
++
++  LatestFrameGrabber() = default;
++  ~LatestFrameGrabber() {
++    stop();
++  }
++  LatestFrameGrabber(const LatestFrameGrabber&) = delete;
++  LatestFrameGrabber& operator=(const LatestFrameGrabber&) = delete;
++
++  void start(cv::VideoCapture* cap) {
++    if (thread_.joinable())
++      return;
++    cap_ = cap;
++    run_.store(true);
++    ended_.store(false);
++    thread_ = std::thread(&LatestFrameGrabber::loop, this);
++  }
++
++  void stop() {
++    run_.store(false);
++    cv_.notify_all();
++    if (thread_.joinable())
++      thread_.join();
++  }
++
++  bool running() const {
++    return thread_.joinable() && !ended_.load();
++  }
++
++  // false にすると、フレームを取り出すだけで展開しない（waitNext には何も渡らない）
++  void setDecode(bool on) {
++    decode_.store(on);
++  }
++
++  // last_seq より新しいフレームを待つ。
++  //   kFrame   : out / t_capture / last_seq を更新した
++  //   kTimeout : timeout までに新しいフレームが来なかった
++  //   kEnded   : カメラが読めなくなった（切断、動画の終わり）
++  // t_capture は、読み取りスレッドが cap.read() から戻った時刻（撮影時刻にいちばん近い値）。
++  Result waitNext(cv::Mat& out, Clock::time_point& t_capture, uint64_t& last_seq,
++                  std::chrono::milliseconds timeout) {
++    std::unique_lock<std::mutex> lk(mtx_);
++    const bool got =
++        cv_.wait_for(lk, timeout, [&] { return seq_ > last_seq || ended_.load() || !run_.load(); });
++    if (seq_ > last_seq) {
++      front_.copyTo(out); // ロックの中でコピーする（読み取りスレッドと同じメモリを共有しない）
++      t_capture = t_front_;
++      skipped_ += (seq_ - last_seq - 1);
++      last_seq = seq_;
++      return Result::kFrame;
++    }
++    if (ended_.load() || !run_.load())
++      return Result::kEnded;
++    (void)got;
++    return Result::kTimeout;
++  }
++
++  // 展開したが、使われずに次のフレームで上書きされた枚数（処理が追いつかなかった分）
++  uint64_t skippedFrames() const {
++    std::lock_guard<std::mutex> lk(mtx_);
++    return skipped_;
++  }
++
++private:
++  void loop() {
++    while (run_.load()) {
++      if (!decode_.load()) {
++        // WATCH 中: 取り出すだけ。カメラ側に古いフレームを溜めない
++        if (!cap_->grab()) {
++          ended_.store(true);
++          break;
++        }
++        continue;
++      }
++      // back_ は常にこのスレッドだけが持つメモリ。読み終わってから front_ と入れ替える
++      if (!cap_->read(back_) || back_.empty()) {
++        ended_.store(true);
++        break;
++      }
++      const auto t = Clock::now();
++      {
++        std::lock_guard<std::mutex> lk(mtx_);
++        std::swap(front_, back_);
++        t_front_ = t;
++        ++seq_;
++      }
++      cv_.notify_all();
++    }
++    cv_.notify_all();
++  }
++
++  cv::VideoCapture* cap_ = nullptr;
++  std::thread thread_;
++  std::atomic<bool> run_{false};
++  std::atomic<bool> ended_{false};
++  std::atomic<bool> decode_{true};
++
++  mutable std::mutex mtx_;
++  std::condition_variable cv_;
++  cv::Mat front_; // 最新のフレーム（mtx_ で保護）
++  cv::Mat back_;  // 読み取り中のフレーム（読み取りスレッド専用）
++  Clock::time_point t_front_{};
++  uint64_t seq_ = 0;
++  uint64_t skipped_ = 0;
++};
++
++} // namespace vision
+diff -ruN a/SeamlessTrack/src/px2/include/yolo_inference.h b/SeamlessTrack/src/px2/include/yolo_inference.h
+--- a/SeamlessTrack/src/px2/include/yolo_inference.h	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/include/yolo_inference.h	2026-11-18 22:36:37.214919922 +0000
+@@ -67,7 +67,8 @@
+   bool lastTrtBreakdown(double& h2d_ms, double& gpu_ms, double& d2h_ms) const;
+   ~YoloDetect(); // session (Ort::Session*) の解放
+   cv::Mat drawBoundingBox(cv::Mat& image, std::vector<Result>& resultVector);
+-  cv::Mat preprocess(cv::Mat& image, int model_input_width, int model_input_height);
++  // image（BGR）は書き換えない。呼び出し側で同じフレームを保存・描画に使える。
++  cv::Mat preprocess(const cv::Mat& image, int model_input_width, int model_input_height);
+   std::vector<Result> postprocess(cv::Size originalImageSize,
+                                   std::vector<Ort::Value>& outputTensors);
+   std::vector<Ort::Value> RunInference(cv::Mat& inputImage);
+diff -ruN a/SeamlessTrack/src/px2/src/inference.cpp b/SeamlessTrack/src/px2/src/inference.cpp
+--- a/SeamlessTrack/src/px2/src/inference.cpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/src/inference.cpp	2026-11-18 23:52:46.985616112 +0000
+@@ -7,6 +7,8 @@
+ #include "inference.h"
+ #include "px3/px3_servo_node.h"
+ 
++#include <ament_index_cpp/get_package_share_directory.hpp>
++
+ #include <algorithm>
+ #include <chrono>
+ #include <cmath>
+@@ -16,8 +18,10 @@
+ 
+ #define YOLO_INPUT_H 640
+ #define YOLO_INPUT_W 640
++// model_path / calib_path が空のときに使う、share/px2/ からの相対パス
+ #define ONNX_YOLO_PATH "weights/yolo11.onnx"
+ #define CALIB_YAML_PATH "weights/calib_result_ir.yaml"
++#define DEFAULT_SAVE_DIR "/tmp/px2_frames"
+ 
+ using namespace std::chrono_literals;
+ 
+@@ -34,8 +38,34 @@
+   active_fps_ =
+       declare_parameter<double>("active_fps", 30.0); // メンバへ代入（DETECT時も同値を使用）
+ 
+-  lost_max_frames_ = declare_parameter<int>("lost_max_frames", 15);
++  capture_buffer_size_ = declare_parameter<int>("capture_buffer_size", 1);
++  // true: 別スレッドで読み続け、最新の 1 枚だけを使う。false: 以前と同じ（処理スレッドで読む）
++  use_capture_thread_ = declare_parameter<bool>("capture_thread", true);
++
++  // ファイルの場所。空なら share/px2/（colcon のインストール先）から探す
++  model_path_ = declare_parameter<std::string>("model_path", "");
++  calib_path_ = declare_parameter<std::string>("calib_path", "");
++  save_dir_ = declare_parameter<std::string>("save_dir", "");
++  if (model_path_.empty() || calib_path_.empty()) {
++    const std::filesystem::path share = ament_index_cpp::get_package_share_directory("px2");
++    if (model_path_.empty())
++      model_path_ = (share / ONNX_YOLO_PATH).string();
++    if (calib_path_.empty())
++      calib_path_ = (share / CALIB_YAML_PATH).string();
++  }
++  if (save_dir_.empty())
++    save_dir_ = DEFAULT_SAVE_DIR;
++  RCLCPP_INFO(get_logger(), "px2: model=%s", model_path_.c_str());
++  RCLCPP_INFO(get_logger(), "px2: calib=%s", calib_path_.c_str());
++
++  lost_timeout_s_ = declare_parameter<double>("lost_timeout_s", 1.0);
++  if (lost_timeout_s_ <= 0.0)
++    throw std::invalid_argument("lost_timeout_s must be > 0");
+   save_frames_ = declare_parameter<bool>("save_frames", false);
++  if (save_frames_) {
++    std::filesystem::create_directories(save_dir_);
++    RCLCPP_INFO(get_logger(), "px2: detected frames are saved to %s", save_dir_.c_str());
++  }
+   const double conf_threshold = declare_parameter<double>("conf_threshold", 0.25);
+ 
+   // 推論デバイス: "trt"（TensorRT 直接）| "tensorrt" | "cuda" | "cpu"
+@@ -57,8 +87,25 @@
+     if (!timing_csv_) {
+       throw std::runtime_error("cannot open timing_csv: " + timing_csv_path);
+     }
++    // detected 以降の列は 2026-11-19 に追加。前の列の並びは変えていない。
++    //   detected       : このフレームで人を検出したか (1/0)
++    //   yaw_err_deg    : 画像中心からのずれ（度）。検出なしのときは 0
++    //   pitch_err_deg  : 同上（縦）
++    //   cmd_x_deg/cmd_y_deg : px2 が持っている指令角（px3 が四捨五入して整数でサーボに送る）
++    //   published      : このフレームで /inference を送ったか (1/0)
++    //   session_id     : DETECT に入るたびに 1 増える番号
++    //   to_watch       : このフレームで見失いと判定し、WATCH に戻ったか (1/0)
++    //   frame_age_ms   : フレームを撮ってから処理を始めるまでの時間（capture_thread=true のとき）
++    //   servo_at_capture_x_deg/y : フレームを撮った時刻の指令角（整数。px3 が送った値）
++    //   target_abs_x_deg/y       : 人の絶対角 = 撮影時の指令角 + 誤差。検出なしのときは空
++    // first_frame は「DETECT に入った最初の 1 フレーム」だけ 1（以前は最初に検出するまで 1）。
++    // capture_ms は「前のフレームの処理が終わってから、次のフレームを受け取るまで」の時間。
+     timing_csv_ << "time_s,frame_id,provider,fp16,first_frame,capture_ms,pre_ms,infer_ms,post_ms,"
+-                   "control_ms,loop_ms,n_det,best_conf,box_area\n";
++                   "control_ms,loop_ms,n_det,best_conf,box_area,"
++                   "detected,yaw_err_deg,pitch_err_deg,cmd_x_deg,cmd_y_deg,published,"
++                   "session_id,to_watch,frame_age_ms,"
++                   "servo_at_capture_x_deg,servo_at_capture_y_deg,"
++                   "target_abs_x_deg,target_abs_y_deg\n";
+     timing_t0_ = std::chrono::steady_clock::now();
+     RCLCPP_INFO(get_logger(), "px2: timing CSV -> %s", timing_csv_path.c_str());
+   }
+@@ -69,14 +116,35 @@
+   y_min_ = declare_parameter<double>("ymin", 20.0);
+   x_center_deg_ = declare_parameter<double>("x_center_deg", 90.0);
+   y_center_deg_ = declare_parameter<double>("y_center_deg", 90.0);
++  // px3 は起動時にサーボを中心へ動かす。px2 が持つ「今の角度」も同じ値から始める
++  servo_x_deg_ = x_center_deg_;
++  servo_y_deg_ = y_center_deg_;
++  // 履歴の最初の 1 件（px3 が起動時に送る中心角。px3 と同じく四捨五入した値）
++  cmd_history_.push(std::chrono::steady_clock::now(), std::round(x_center_deg_),
++                    std::round(y_center_deg_));
++  servo_lag_ms_ = declare_parameter<double>("servo_lag_ms", 0.0);
++  if (servo_lag_ms_ < 0.0)
++    throw std::invalid_argument("servo_lag_ms must be >= 0");
++
++  // px3 に渡すだけの値（px3ParameterOverrides() を参照）
++  px3_serial_port_ = declare_parameter<std::string>("serial_port", "/dev/ttyACM0");
++  px3_baudrate_ = declare_parameter<int>("baudrate", 115200);
++  px3_pir_pin_ = declare_parameter<int>("pir_pin", 2);
+ 
+   // PD controller gains and step limit — tunable via launch arguments
+-  const double max_step_deg =
+-      declare_parameter<double>("max_step_deg", 1.2); // 3.0 → 1.2（dead zone未満に抑制）
++  //   max_step_deg : 1 フレームで動かす最大量（度）。launch の既定値と同じ 3.0
++  //   kd_*         : 「1 フレームあたりの誤差の変化」に掛ける（dt では割らない）。
++  //                  以前の Kd=0.2（dt で割る）は 30 Hz で 6.0 相当だった
++  const double max_step_deg = declare_parameter<double>("max_step_deg", 3.0);
+   const double kp_yaw = declare_parameter<double>("kp_yaw", 0.3);
+-  const double kd_yaw = declare_parameter<double>("kd_yaw", 0.2);
++  const double kd_yaw = declare_parameter<double>("kd_yaw", 0.3);
+   const double kp_pitch = declare_parameter<double>("kp_pitch", 0.3);
+-  const double kd_pitch = declare_parameter<double>("kd_pitch", 0.2);
++  const double kd_pitch = declare_parameter<double>("kd_pitch", 0.3);
++
++  yaw_dead_zone_deg_ = declare_parameter<double>("dead_zone_yaw_deg", 1.0);
++  pitch_dead_zone_deg_ = declare_parameter<double>("dead_zone_pitch_deg", 1.0);
++  if (yaw_dead_zone_deg_ < 0.0 || pitch_dead_zone_deg_ < 0.0)
++    throw std::invalid_argument("dead_zone_*_deg must be >= 0");
+ 
+   // -------------------- axis controller --------------------
+   yaw_axis_.Kp = kp_yaw;
+@@ -136,27 +204,57 @@
+   }
+ 
+   vision::capture::applyCameraSettingsToCap(cap_, get_logger(), active_width_, active_height_,
+-                                            active_fps_);
++                                            active_fps_, capture_buffer_size_);
+   mode_ = Mode::WATCH;
+ 
+   // -------------------- calibration + model --------------------
+-  if (vision::loadCalibrationFile(pkg_path + CALIB_YAML_PATH, active_width_, active_height_,
+-                                  calib_)) {
++  if (vision::loadCalibrationFile(calib_path_, active_width_, active_height_, calib_)) {
+     RCLCPP_INFO(get_logger(), "Loaded calibration: (calib %dx%d -> active %dx%d)", calib_.calib_w,
+                 calib_.calib_h, active_width_, active_height_);
++    if (calib_.aspect_mismatch) {
++      RCLCPP_WARN(get_logger(),
++                  "Calibration aspect ratio (%dx%d) differs from capture (%dx%d): "
++                  "pixel-to-angle conversion will be off. Recalibrate at the capture resolution.",
++                  calib_.calib_w, calib_.calib_h, active_width_, active_height_);
++    }
+   } else {
+-    RCLCPP_WARN(get_logger(), "Calibration not loaded.");
++    RCLCPP_ERROR(get_logger(), "Calibration not loaded: %s", calib_path_.c_str());
+     throw std::runtime_error("Calibration not loaded");
+   }
+ 
+-  yolo_ = std::make_unique<YoloDetect>(pkg_path + std::string(ONNX_YOLO_PATH),
+-                                       static_cast<float>(conf_threshold), backend);
++  if (!std::filesystem::exists(model_path_))
++    throw std::runtime_error("model not found: " + model_path_);
++  yolo_ = std::make_unique<YoloDetect>(model_path_, static_cast<float>(conf_threshold), backend);
+   RCLCPP_INFO(get_logger(), "px2: inference provider = %s (requested %s)",
+               yolo_->activeProvider().c_str(), backend.provider.c_str());
++  // GPU を要求したのに CPU で動いている場合は、はっきり知らせる（CPU は 1 フレーム約 88 ms）
++  requested_provider_ = backend.provider;
++  provider_fell_back_ = (requested_provider_ != "cpu" && yolo_->activeProvider() == "cpu");
++  if (provider_fell_back_) {
++    RCLCPP_ERROR(get_logger(),
++                 "px2: requested provider '%s' is NOT in use. Running on CPU (much slower). "
++                 "Check the [yolo]/[trt] messages above (engine file, nvidia runtime, build).",
++                 requested_provider_.c_str());
++  }
++  RCLCPP_INFO(get_logger(),
++              "px2: control kp=(%.2f, %.2f) kd=(%.2f, %.2f) per-frame, max_step=%.1f deg, "
++              "dead_zone=(%.1f, %.1f) deg, lost_timeout=%.2f s",
++              yaw_axis_.Kp, pitch_axis_.Kp, yaw_axis_.Kd, pitch_axis_.Kd, max_step_deg,
++              yaw_dead_zone_deg_, pitch_dead_zone_deg_, lost_timeout_s_);
+ 
+   timer_ = create_wall_timer(50ms, std::bind(&OnnxInferenceNode::callbackInference, this));
+ }
+ 
++std::vector<rclcpp::Parameter> OnnxInferenceNode::px3ParameterOverrides() const {
++  return {
++      rclcpp::Parameter("serial_port", px3_serial_port_),
++      rclcpp::Parameter("baudrate", px3_baudrate_),
++      rclcpp::Parameter("x_center_deg", x_center_deg_),
++      rclcpp::Parameter("y_center_deg", y_center_deg_),
++      rclcpp::Parameter("pir_pin", px3_pir_pin_),
++  };
++}
++
+ void OnnxInferenceNode::publishWakeup(bool on) {
+   std_msgs::msg::Bool m;
+   m.data = on;
+@@ -166,21 +264,32 @@
+ // WATCHモードに遷移。wakeup_requested_ をクリアしてPIR待機状態に戻る。
+ void OnnxInferenceNode::enterWatchMode() {
+   mode_ = Mode::WATCH;
+-  no_det_frames_ = 0;
++  if (use_capture_thread_)
++    grabber_.setDecode(false);    // WATCH 中は取り出すだけ（展開しない）
+   wakeup_requested_.store(false); // 次のPIR検知まで誤トリガーを防ぐ
+   publishWakeup(false);
+   RCLCPP_INFO(get_logger(), "px2: enter WATCH mode");
+ }
+ 
+-// DETECT_TRACKモードに遷移。PDコントローラーをリセットしwakeup状態をpublish。
++// DETECT_TRACKモードに遷移。PDコントローラーを「今のサーボ角」から再開しwakeup状態をpublish。
+ void OnnxInferenceNode::enterDetectTrackMode() {
+   mode_ = Mode::DETECT_TRACK;
+-  no_det_frames_ = 0;
++  ++session_id_;
+   first_detect_frame_ = true;
+-  yaw_axis_.reset(0.0);
+-  pitch_axis_.reset(0.0);
+-  vision::capture::applyCameraSettingsToCap(cap_, get_logger(), active_width_, active_height_,
+-                                            active_fps_); // ★復活
++  prev_frame_detected_ = false;
++  last_det_t_ = std::chrono::steady_clock::now(); // 見失い判定はここから数える
++  // WATCH に戻ってもサーボは最後の向きのまま止まっている。
++  // 位置を 0（中央）に戻すと、最初の指令で中央へ飛ぶので、今の角度から再開する。
++  yaw_axis_.resetAtServoDeg(servo_x_deg_);
++  pitch_axis_.resetAtServoDeg(servo_y_deg_);
++  if (use_capture_thread_) {
++    // 読み取りスレッドが cap_ を使っているので、ここでカメラの設定をし直さない。
++    // WATCH 中も取り出し続けているので、古いフレームは溜まっていない。展開を始めるだけでよい。
++    grabber_.setDecode(true);
++  } else {
++    vision::capture::applyCameraSettingsToCap(cap_, get_logger(), active_width_, active_height_,
++                                              active_fps_, capture_buffer_size_); // ★復活
++  }
+ 
+   publishWakeup(true); // watch_node へ検知中を通知（wakeup_sent_ リセット防止）
+   RCLCPP_INFO(get_logger(), "px2: enter DETECT+TRACK mode");
+@@ -194,13 +303,13 @@
+     const cv::Point2f p_tgt(static_cast<float>(active_width_ / 2.0), p_meas.y);
+     const double yaw_rad = control::yawErrFromPixels(p_meas, p_tgt, calib_.K, calib_.D);
+     const double err_deg = yaw_axis_.errorDeg(yaw_rad);
+-    RCLCPP_INFO(get_logger(), "yaw_rad=%.3f | err_deg=%.2f", yaw_rad, err_deg);
++    RCLCPP_DEBUG(get_logger(), "yaw_rad=%.3f | err_deg=%.2f", yaw_rad, err_deg);
+     return err_deg;
+   } else {
+     const cv::Point2f p_tgt(p_meas.x, static_cast<float>(active_height_ * kTargetYRatio));
+     const double pitch_rad = control::pitchErrFromPixels(p_meas, p_tgt, calib_.K, calib_.D);
+     const double err_deg = pitch_axis_.errorDeg(pitch_rad);
+-    RCLCPP_INFO(get_logger(), "pitch_rad=%.3f | err_deg=%.2f", pitch_rad, err_deg);
++    RCLCPP_DEBUG(get_logger(), "pitch_rad=%.3f | err_deg=%.2f", pitch_rad, err_deg);
+     return err_deg;
+   }
+ }
+@@ -209,8 +318,11 @@
+   custom_msgs::msg::AbsResult m;
+   m.x_angle = yaw_deg;
+   m.y_angle = pitch_deg;
+-  RCLCPP_INFO(get_logger(), "px2: publishState X=%.2f Y=%.2f", m.x_angle, m.y_angle);
++  RCLCPP_DEBUG(get_logger(), "px2: publishState X=%.2f Y=%.2f", m.x_angle, m.y_angle);
+   pub_abs_->publish(m);
++  // 送った指令を履歴に残す。px3 は四捨五入した整数をサーボに送るので、同じ値を入れる
++  cmd_history_.push(std::chrono::steady_clock::now(), std::round(static_cast<double>(yaw_deg)),
++                    std::round(static_cast<double>(pitch_deg)));
+ }
+ 
+ void OnnxInferenceNode::saveFrameIfNeeded(const cv::Mat& frame, const cv::Rect2d& roi_img,
+@@ -233,31 +345,62 @@
+   cv::rectangle(vis, roi_img, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+ 
+   const std::filesystem::path out =
+-      std::filesystem::path(pkg_path) / "data" / (name_prefix + std::to_string(frame_id) + ".png");
++      std::filesystem::path(save_dir_) / (name_prefix + std::to_string(frame_id) + ".png");
+   cv::imwrite(out.string(), vis);
+-  RCLCPP_INFO(get_logger(), "px2: saved image -> %s", out.string().c_str());
++  RCLCPP_DEBUG(get_logger(), "px2: saved image -> %s", out.string().c_str());
+ }
+ 
+ void OnnxInferenceNode::callbackInference() {
+   if (started_)
+     return;
+   started_ = true;
++  timer_->cancel(); // 1 回起動すれば十分。以後 50 ms ごとに空振りさせない
+   pipeline_thread_ = std::thread(&OnnxInferenceNode::runPipelineLoop, this);
+ }
+ 
++// 次のフレームを受け取る。
++//   capture_thread=true : 読み取りスレッドの最新の 1 枚を待つ（WATCH 中は何も来ない）
++//   capture_thread=false: このスレッドで cap_.read() する（以前と同じ）
++bool OnnxInferenceNode::nextFrame(cv::Mat& frame, std::chrono::steady_clock::time_point& t_capture,
++                                  bool& got) {
++  got = false;
++  if (use_capture_thread_) {
++    // WATCH 中は 50 ms ごとに戻って、起動要求を確かめる
++    const auto timeout = (mode_ == Mode::WATCH) ? 50ms : 200ms;
++    const auto r = grabber_.waitNext(frame, t_capture, grab_seq_, timeout);
++    if (r == vision::LatestFrameGrabber::Result::kEnded)
++      return false;
++    got = (r == vision::LatestFrameGrabber::Result::kFrame);
++    return true;
++  }
++  if (!cap_.read(frame))
++    return false;
++  t_capture = std::chrono::steady_clock::now();
++  got = !frame.empty();
++  return true;
++}
++
+ // WATCH / DETECT_TRACK のステートマシン本体。
+ void OnnxInferenceNode::runPipelineLoop() {
+-  RCLCPP_INFO(get_logger(), "[px2] pipeline start.");
++  RCLCPP_INFO(get_logger(), "[px2] pipeline start. capture_thread=%s",
++              use_capture_thread_ ? "true" : "false");
+ 
+   int frame_id = 0;
+   cv::Mat frame;
+   auto t_prev = std::chrono::steady_clock::now();
+ 
++  if (use_capture_thread_) {
++    grabber_.setDecode(false); // WATCH から始まる
++    grabber_.start(&cap_);
++  }
++
+   auto t_iter_end = std::chrono::steady_clock::now(); // 直前の DETECT 処理が終わった時刻
+-  while (rclcpp::ok() && cap_.read(frame)) {
+-    const auto t_frame = std::chrono::steady_clock::now(); // フレームを受け取った時刻
+-    if (frame.empty())
+-      continue;
++  while (rclcpp::ok()) {
++    bool got = false;
++    std::chrono::steady_clock::time_point t_capture; // フレームを撮った時刻
++    if (!nextFrame(frame, t_capture, got))
++      break;
++    const auto t_got = std::chrono::steady_clock::now(); // フレームを受け取った時刻
+ 
+     // ==================================================
+     //  WATCH mode
+@@ -265,88 +408,120 @@
+     if (mode_ == Mode::WATCH) {
+       const auto t0 = std::chrono::steady_clock::now();
+ 
+-      // PIR 経由の /px_wakeup=true により wakeup_requested_ がセットされる
+-      const bool ext_wakeup = wakeup_requested_.exchange(false);
+-      if (ext_wakeup && px3_ready_.load()) {
++      // PIR 経由の /px_wakeup=true により wakeup_requested_ がセットされる。
++      // px3 の準備ができるまでは、起動要求を消さずに残しておく。
++      if (px3_ready_.load() && wakeup_requested_.exchange(false)) {
+         enterDetectTrackMode();
+         continue;
+       }
+ 
+-      // 低 fps を維持してフレームを読み捨て（カメラバッファを空にするため必要）
+-      const double fps = (watch_fps_ > 0.0 ? watch_fps_ : 2.0);
+-      const auto period = std::chrono::duration<double>(1.0 / fps);
+-      const auto dt = std::chrono::steady_clock::now() - t0;
+-      if (dt < period)
+-        std::this_thread::sleep_for(period - dt);
++      if (!use_capture_thread_) {
++        // 低 fps を維持してフレームを読み捨て（カメラバッファを空にするため必要）
++        const double fps = (watch_fps_ > 0.0 ? watch_fps_ : 2.0);
++        const auto period = std::chrono::duration<double>(1.0 / fps);
++        const auto dt = std::chrono::steady_clock::now() - t0;
++        if (dt < period)
++          std::this_thread::sleep_for(period - dt);
++      }
+ 
+-      ++frame_id;
++      if (got)
++        ++frame_id;
+       continue;
+     }
+ 
++    if (!got)
++      continue; // まだ新しいフレームが無い
++
+     // ===== DETECT+TRACK =====
+     const auto t_now = std::chrono::steady_clock::now();
+     const double dt = std::chrono::duration<double>(t_now - t_prev).count();
+     t_prev = t_now;
+ 
+     const bool is_first_frame = first_detect_frame_;
++    first_detect_frame_ = false; // DETECT に入った最初の 1 フレームだけ 1
+     const cv::Size imsz = frame.size();
+     const auto tp0 = std::chrono::steady_clock::now();
+-    cv::Mat inputImage = yolo_->preprocess(frame, YOLO_INPUT_H, YOLO_INPUT_W);
++    // preprocess は frame を書き換えない（保存する画像の色が入れ替わらない）
++    cv::Mat inputImage = yolo_->preprocess(frame, YOLO_INPUT_W, YOLO_INPUT_H);
+     const auto tp1 = std::chrono::steady_clock::now();
+     std::vector<Ort::Value> outputTensors = yolo_->RunInference(inputImage);
+     const auto tp2 = std::chrono::steady_clock::now();
+     std::vector<Result> results = yolo_->postprocess(imsz, outputTensors);
+     const auto tp3 = std::chrono::steady_clock::now();
+     using ms = std::chrono::duration<double, std::milli>;
+-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+-                         "px2[timing] provider=%s pre=%.1fms infer=%.1fms post=%.1fms loop=%.1fms",
+-                         yolo_->activeProvider().c_str(), ms(tp1 - tp0).count(),
+-                         ms(tp2 - tp1).count(), ms(tp3 - tp2).count(), dt * 1000.0);
+-
+-    RCLCPP_INFO(get_logger(), "px2[debug]: results.size()=%zu", results.size());
+ 
+     cv::Rect2d box = vision::bbox::findBiggestBBox(results);
+-    RCLCPP_INFO(
+-        get_logger(),
+-        "px2[debug]: box.area()=%.2f box=(x=%.1f,y=%.1f,w=%.1f,h=%.1f) kMinBoxArea=%.2f -> %s",
+-        box.area(), box.x, box.y, box.width, box.height, kMinBoxArea,
+-        (box.area() >= kMinBoxArea ? "PASS(will track/save)" : "FAIL(no detection this frame)"));
+-    saveFrameIfNeeded(frame, box, frame_id, "undetect_");
+-    if (box.area() >= kMinBoxArea) {
+-      no_det_frames_ = 0;
+-      // 初回フレームは dt が不定のため微分項をスキップする
+-      const double effective_dt = first_detect_frame_ ? 0.0 : dt;
+-      first_detect_frame_ = false;
+-
+-      const double yaw_err_deg = computeAxisErrorDeg(Axis::YAW, box);
+-      const double pitch_err_deg = computeAxisErrorDeg(Axis::PITCH, box);
+-      const bool yaw_in_dead = std::abs(yaw_err_deg) < kYawDeadZoneDeg;
+-      const bool pitch_in_dead = std::abs(pitch_err_deg) < kPitchDeadZoneDeg;
+-
+-      if (!yaw_in_dead) {
+-        servo_x_deg_ = yaw_axis_.commit(yaw_err_deg, effective_dt);
++    const bool detected = box.area() >= kMinBoxArea;
++    RCLCPP_DEBUG(get_logger(),
++                 "px2[debug]: results.size()=%zu box=(x=%.1f,y=%.1f,w=%.1f,h=%.1f) -> %s",
++                 results.size(), box.x, box.y, box.width, box.height,
++                 detected ? "detected" : "no detection");
++
++    double yaw_err_deg = 0.0;
++    double pitch_err_deg = 0.0;
++    bool published = false;
++    bool to_watch = false;
++
++    // フレームを撮った時刻のサーボ角（指令角の履歴から引く）。この値は記録するだけで、
++    // 制御にはまだ使っていない（段階 11 で使う）。
++    double servo_cap_x_deg = servo_x_deg_;
++    double servo_cap_y_deg = servo_y_deg_;
++    cmd_history_.at(t_capture - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
++                                    std::chrono::duration<double, std::milli>(servo_lag_ms_)),
++                    servo_cap_x_deg, servo_cap_y_deg);
++
++    if (detected) {
++      last_det_t_ = tp3;
++      // 直前のフレームで検出できていないときは、前フレームとの差が使えないので D 項を使わない
++      const bool use_d = prev_frame_detected_;
++
++      yaw_err_deg = computeAxisErrorDeg(Axis::YAW, box);
++      pitch_err_deg = computeAxisErrorDeg(Axis::PITCH, box);
++      const bool yaw_in_dead = std::abs(yaw_err_deg) < yaw_dead_zone_deg_;
++      const bool pitch_in_dead = std::abs(pitch_err_deg) < pitch_dead_zone_deg_;
++
++      // 死帯の中: 動かさないが、誤差は覚えておく（死帯を出た瞬間に D 項が跳ねないように）
++      if (yaw_in_dead) {
++        yaw_axis_.observe(yaw_err_deg);
++      } else {
++        servo_x_deg_ = yaw_axis_.commit(yaw_err_deg, use_d);
+       }
+-      if (!pitch_in_dead) {
+-        servo_y_deg_ = pitch_axis_.commit(pitch_err_deg, effective_dt);
++      if (pitch_in_dead) {
++        pitch_axis_.observe(pitch_err_deg);
++      } else {
++        servo_y_deg_ = pitch_axis_.commit(pitch_err_deg, use_d);
+       }
+       if (!yaw_in_dead || !pitch_in_dead) {
+         publishState(static_cast<float>(servo_x_deg_), static_cast<float>(servo_y_deg_));
++        published = true;
+       }
+ 
+-      // Detection log: bboxセンターと画像中央のズレを出力
+-      const cv::Point2f bbox_center = vision::bbox::bboxCenter(box);
+-      const cv::Point2f img_center(static_cast<float>(active_width_ / 2.0),
+-                                   static_cast<float>(active_height_ / 2.0));
+-      const float dist = cv::norm(bbox_center - img_center);
+-      RCLCPP_INFO(get_logger(), "px2: bbox_center=(%.1f,%.1f) img_center=(%.1f,%.1f) dist=%.1fpx",
+-                  bbox_center.x, bbox_center.y, img_center.x, img_center.y, dist);
+-
++      // 検出したフレームだけ保存する（1 フレーム 1 枚）。
++      // 以前は "undetect_" と "detect_" の 2 枚を、どちらも検出時に保存していた。
+       saveFrameIfNeeded(frame, box, frame_id, "detect_");
+ 
+     } else {
+-      no_det_frames_++;
+-      if (no_det_frames_ >= lost_max_frames_)
++      // 最後に検出してから lost_timeout_s 秒たったら WATCH に戻る
++      const double lost_s = std::chrono::duration<double>(tp3 - last_det_t_).count();
++      if (lost_s >= lost_timeout_s_) {
+         enterWatchMode();
++        to_watch = true;
++      }
++    }
++    prev_frame_detected_ = detected;
++
++    // 1 秒に 1 回だけ出す（毎フレームのログは DEBUG に下げた）
++    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
++                         "px2[timing] provider=%s pre=%.1fms infer=%.1fms post=%.1fms loop=%.1fms"
++                         " age=%.1fms | det=%d err=(%.2f, %.2f)deg cmd=(%.1f, %.1f)deg",
++                         yolo_->activeProvider().c_str(), ms(tp1 - tp0).count(),
++                         ms(tp2 - tp1).count(), ms(tp3 - tp2).count(), dt * 1000.0,
++                         ms(tp0 - t_capture).count(), detected ? 1 : 0, yaw_err_deg, pitch_err_deg,
++                         servo_x_deg_, servo_y_deg_);
++    if (provider_fell_back_) {
++      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 10000,
++                           "px2: running on CPU although '%s' was requested (much slower)",
++                           requested_provider_.c_str());
+     }
+ 
+     // ---------- 計測 CSV ----------
+@@ -357,10 +532,20 @@
+         best_conf = std::max(best_conf, r.accuracy);
+       timing_csv_ << std::chrono::duration<double>(tp4 - timing_t0_).count() << ',' << frame_id
+                   << ',' << yolo_->activeProvider() << ',' << (timing_fp16_ ? 1 : 0) << ','
+-                  << (is_first_frame ? 1 : 0) << ',' << ms(t_frame - t_iter_end).count() << ','
++                  << (is_first_frame ? 1 : 0) << ',' << ms(t_got - t_iter_end).count() << ','
+                   << ms(tp1 - tp0).count() << ',' << ms(tp2 - tp1).count() << ','
+                   << ms(tp3 - tp2).count() << ',' << ms(tp4 - tp3).count() << ',' << dt * 1000.0
+-                  << ',' << results.size() << ',' << best_conf << ',' << box.area() << '\n';
++                  << ',' << results.size() << ',' << best_conf << ',' << box.area() << ','
++                  << (detected ? 1 : 0) << ',' << yaw_err_deg << ',' << pitch_err_deg << ','
++                  << servo_x_deg_ << ',' << servo_y_deg_ << ',' << (published ? 1 : 0) << ','
++                  << session_id_ << ',' << (to_watch ? 1 : 0) << ',' << ms(tp0 - t_capture).count()
++                  << ',' << servo_cap_x_deg << ',' << servo_cap_y_deg << ',';
++      if (detected) {
++        timing_csv_ << (servo_cap_x_deg + yaw_err_deg) << ',' << (servo_cap_y_deg + pitch_err_deg);
++      } else {
++        timing_csv_ << ','; // 検出なし: 絶対角は空
++      }
++      timing_csv_ << '\n';
+       if (++timing_rows_ % 30 == 0)
+         timing_csv_.flush();
+     }
+@@ -376,16 +561,21 @@
+ 
+ // ============================================================
+ //  main — 3ノード構成
+-//    px3_node (servo + PIR 管理)
+ //    px2_node (YOLO 推論 + DETECT+TRACK)
++//    px3_node (servo + PIR 管理。px2 と同じプロセス。パラメータは px2 経由で受け取る)
+ //    watch_node は別プロセス (px3 パッケージ)
+ // ============================================================
+ int main(int argc, char* argv[]) {
+   rclcpp::init(argc, argv);
+   try {
+-    auto px3_node = std::make_shared<px3_embedded::Px3ServoNode>(
+-        rclcpp::NodeOptions().use_global_arguments(false));
++    // px2 を先に作る。launch のパラメータは px2 にだけ届くので、
++    // px3 用の値（serial_port / baudrate / x_center_deg / y_center_deg / pir_pin）は
++    // px2 から受け取って px3 に渡す。
++    // px3 は use_global_arguments(false) のまま（launch の __node:=px2 で名前が変わるのを防ぐ）。
+     auto px2_node = std::make_shared<onnx_inference::OnnxInferenceNode>();
++    auto px3_node = std::make_shared<px3_embedded::Px3ServoNode>(
++        rclcpp::NodeOptions().use_global_arguments(false).parameter_overrides(
++            px2_node->px3ParameterOverrides()));
+ 
+     rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 4);
+     exec.add_node(px3_node);
+diff -ruN a/SeamlessTrack/src/px2/src/tools/bench_yolo.cpp b/SeamlessTrack/src/px2/src/tools/bench_yolo.cpp
+--- a/SeamlessTrack/src/px2/src/tools/bench_yolo.cpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/src/tools/bench_yolo.cpp	2026-11-18 22:36:37.215863825 +0000
+@@ -132,9 +132,8 @@
+ 
+   std::vector<double> pre, inf, post, total, h2d, gpu, d2h;
+   for (int i = -warmup; i < iters; ++i) {
+-    cv::Mat frame = src.clone(); // preprocess は画像を書き換えるので毎回コピー
+     const auto t0 = Clock::now();
+-    cv::Mat blob = yolo.preprocess(frame, 640, 640);
++    cv::Mat blob = yolo.preprocess(src, 640, 640); // preprocess は src を書き換えない
+     const auto t1 = Clock::now();
+     std::vector<Ort::Value> out = yolo.RunInference(blob);
+     const auto t2 = Clock::now();
+diff -ruN a/SeamlessTrack/src/px2/src/yolo_inference.cpp b/SeamlessTrack/src/px2/src/yolo_inference.cpp
+--- a/SeamlessTrack/src/px2/src/yolo_inference.cpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px2/src/yolo_inference.cpp	2026-11-18 22:51:02.657064891 +0000
+@@ -51,13 +51,15 @@
+       warmup();
+       return;
+     } catch (const std::exception& e) {
+-      std::cerr << "[yolo] native TensorRT failed: " << e.what()
+-                << " -> falling back to ONNX Runtime CPU" << std::endl;
++      std::cerr << "[yolo] WARNING: native TensorRT failed: " << e.what()
++                << " -> falling back to ONNX Runtime CPU (much slower)" << std::endl;
+       trt_.reset();
+     }
+ #else
+-    std::cerr << "[yolo] px2 was built without TensorRT -> falling back to ONNX Runtime CPU"
+-              << std::endl;
++    std::cerr
++        << "[yolo] WARNING: px2 was built without TensorRT -> falling back to ONNX Runtime CPU"
++           " (much slower)"
++        << std::endl;
+ #endif
+   }
+ 
+@@ -253,9 +255,8 @@
+   std::vector<Result> resultVector;
+   for (int idx : indices) {
+     const cv::Rect& b = boxes[idx];
+-    // 採用した検出のaccuracyを出力する（しきい値チューニング用）
+-    std::cout << "[yolo] accepted detection accuracy=" << confidences[idx]
+-              << " (threshold=" << conf_threshold_ << ")" << std::endl;
++    // 検出ごとの標準出力はやめた（毎フレーム出て遅延の原因になる）。
++    // 信頼度は Result::accuracy に入り、px2 の timing CSV の best_conf 列で確認できる。
+     resultVector.emplace_back(b.x, b.x + b.width, b.y, b.y + b.height, class_ids[idx],
+                               confidences[idx]);
+   }
+@@ -269,10 +270,11 @@
+   return ((v - pad) / static_cast<float>(model_size_after_padding)) * original_size;
+ }
+ 
+-cv::Mat YoloDetect::preprocess(cv::Mat& image, int model_input_width, int model_input_height) {
++cv::Mat YoloDetect::preprocess(const cv::Mat& bgr, int model_input_width, int model_input_height) {
+ 
+-  // Channels order: BGR to RGB
+-  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
++  // Channels order: BGR to RGB（元のフレームは書き換えず、別の Mat に変換する）
++  cv::Mat image;
++  cv::cvtColor(bgr, image, cv::COLOR_BGR2RGB);
+ 
+   // Calculate the scaling factor for resizing without distortion
+   double scale;
+diff -ruN a/SeamlessTrack/src/px3/include/px3/px3_servo_node.h b/SeamlessTrack/src/px3/include/px3/px3_servo_node.h
+--- a/SeamlessTrack/src/px3/include/px3/px3_servo_node.h	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px3/include/px3/px3_servo_node.h	2026-11-18 23:51:10.536115035 +0000
+@@ -5,13 +5,14 @@
+ //
+ //  TelemetrixSerial: サーボ write + PIR DIGITAL_REPORT 受信
+ //                    （read_loop スレッドで Arduino からの報告を処理）
+-//  Px3ServoNode    : /inference → サーボ駆動、PIR → /pir/state 配信
++//  Px3ServoNode    : /inference → サーボ駆動（四捨五入した整数の角度）、PIR → /pir/state 配信
+ // ============================================================
+ 
+ #include <atomic>
+ #include <cstdint>
+ #include <functional>
+ #include <memory>
++#include <mutex>
+ #include <string>
+ #include <thread>
+ #include <vector>
+@@ -28,9 +29,9 @@
+ inline constexpr int SERVO_X_PIN = 10;
+ inline constexpr int SERVO_Y_PIN = 9;
+ inline constexpr int PIR_PIN = 2; // SB612B OUT → Arduino D2
+-// MG996R が目標角度に物理的に到達するまでの待機時間（ms）
+-// kAckTimeoutMs (inference.h) はこの値 + ROS通信マージンに設定すること
+-inline constexpr int SERVO_ARRIVAL_WAIT_MS = 30;
++// PIR の今の値を /pir/state に送り直す間隔（ms）。変化が無くても送る。
++// 受け取る側（watch_node）が 1 回取りこぼしても、次の送信で追いつけるようにするため
++inline constexpr int PIR_STATE_PERIOD_MS = 200;
+ 
+ // Telemetrix コマンド
+ inline constexpr uint8_t CMD_SERVO_ATTACH = 7;
+@@ -105,8 +106,12 @@
+ 
+ // ============================================================
+ //  Px3ServoNode
+-//    /inference 受信 → サーボ角度書き込み → /px3_ack 送信
+-//    PIR 変化 → /pir/state publish
++//    /inference 受信 → サーボ角度書き込み（最新の 1 件だけ。待たない）
++//    PIR 変化 → /pir/state publish。さらに PIR_STATE_PERIOD_MS ごとに今の値を送り直す
++//    （/pir/state は「立ち上がり」ではなく「今 HIGH かどうか」を表す）
++//
++//  パラメータ（serial_port / baudrate / x_center_deg / y_center_deg / pir_pin）は、
++//  px2 と同居するときは px2 から parameter_overrides で受け取る（inference.cpp の main）。
+ // ============================================================
+ class Px3ServoNode : public rclcpp::Node {
+ public:
+@@ -114,12 +119,12 @@
+   ~Px3ServoNode() override;
+ 
+ private:
+-  // /inference 受信 → サーボ角度書き込み → /px3_ack publish
++  // /inference 受信 → サーボ角度書き込み
+   void on_angle(const custom_msgs::msg::AbsResult::SharedPtr msg);
+ 
+   // PIR 変化通知（read_loop スレッドから呼ばれる）
+   void on_pir_change(uint8_t pin, uint8_t value);
+-  // px2 がWATCHに戻った通知を受けてpir_detected_をリセット
++  // px2 がWATCHに戻った通知を受けて、PIR の今の値を送り直す
+   void on_watch_resumed(const std_msgs::msg::Bool::SharedPtr msg);
+ 
+ private:
+@@ -128,11 +133,12 @@
+   double y_center_deg_ = 90.0;
+ 
+   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_pub_;
+-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ack_pub_;
+   rclcpp::Subscription<custom_msgs::msg::AbsResult>::SharedPtr sub_;
+ 
+   // /pir/state publisher
+   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pir_state_pub_;
++  rclcpp::TimerBase::SharedPtr pir_state_timer_; // 今の値を定期的に送り直す
++  void publish_pir_state();
+ 
+   // PIR ステート（デバウンス用）
+   bool init_ok_{false}; // 初期化完了フラグ（起動直後の誤リセット抑制用）
+diff -ruN a/SeamlessTrack/src/px3/include/px3/watch_node.h b/SeamlessTrack/src/px3/include/px3/watch_node.h
+--- a/SeamlessTrack/src/px3/include/px3/watch_node.h	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px3/include/px3/watch_node.h	2026-11-18 23:52:46.953504231 +0000
+@@ -4,11 +4,15 @@
+ //  watch_node.h  — WatchNode
+ //
+ //  /pir/state (from px3) を subscribe し、
+-//  PIR 検知時に /px_wakeup=true を px2 へ publish する仲介ノード。
++//  PIR が HIGH のとき /px_wakeup=true を px2 へ publish する仲介ノード。
+ //  シリアル / Telemetrix 処理は持たない。
+ //
++//  /pir/state は「今 HIGH かどうか」で、px3 が 200 ms ごとに送り直す。
++//  立ち上がり（LOW→HIGH の瞬間）ではなく今の値で判定するので、
++//  1 回取りこぼしても次の受信で起動できる。
++//
+ //  Subscribe:
+-//    /pir/state   std_msgs/Bool  (from px3)
++//    /pir/state   std_msgs/Bool  transient_local (from px3、今の値)
+ //    /px3_ready   std_msgs/Bool  transient_local (from px3)
+ //    /px_wakeup   std_msgs/Bool  transient_local (from px2, false のみ使用)
+ //
+@@ -42,6 +46,10 @@
+   // wakeup publish ヘルパー
+   void publish_wakeup(bool on);
+ 
++  // 条件がそろっていれば /px_wakeup=true を送る。
++  // 条件: PIR が HIGH、px3 が準備済み、まだ送っていない、デバウンスと再起動待ちを過ぎている
++  void try_wakeup();
++
+ private:
+   // ---- Subscribers ----
+   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr pir_sub_;
+@@ -54,11 +62,16 @@
+   // ---- State ----
+   std::atomic<bool> px3_ready_{false};
+   std::atomic<bool> wakeup_sent_{false}; // 二重送信防止
++  std::atomic<bool> pir_level_{false}; // PIR の今の値（最後に受け取った /pir/state）
+ 
+   // ---- Params ----
+   int pir_debounce_ms_{200}; // 連続 PIR 検知に対するデバウンス (ms)
+   // {} 初期化により初回 PIR 検知は必ずデバウンスをpassする（意図的）
+   std::chrono::steady_clock::time_point last_wakeup_t_{};
++  // px2 が WATCH に戻ってから、この時間は再起動しない (ms)。
++  // 人がいないのに PIR が HIGH のままのとき、WATCH と DETECT を細かく往復するのを防ぐ
++  int rewake_delay_ms_{1000};
++  std::chrono::steady_clock::time_point watch_resumed_t_{};
+ };
+ 
+ } // namespace px_watch
+diff -ruN a/SeamlessTrack/src/px3/src/px3_servo_node.cpp b/SeamlessTrack/src/px3/src/px3_servo_node.cpp
+--- a/SeamlessTrack/src/px3/src/px3_servo_node.cpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px3/src/px3_servo_node.cpp	2026-11-18 23:51:10.536626151 +0000
+@@ -6,6 +6,7 @@
+ 
+ #include <algorithm>
+ #include <chrono>
++#include <cmath>
+ #include <cstdio>
+ #include <cstring>
+ #include <stdexcept>
+@@ -282,6 +283,10 @@
+   x_center_deg_ = declare_parameter<double>("x_center_deg", 90.0);
+   y_center_deg_ = declare_parameter<double>("y_center_deg", 90.0);
+   const int pir_pin = declare_parameter<int>("pir_pin", PIR_PIN);
++  RCLCPP_INFO(
++      get_logger(),
++      "px3: params serial_port=%s baudrate=%d x_center_deg=%.1f y_center_deg=%.1f pir_pin=%d",
++      port.c_str(), static_cast<int>(baud), x_center_deg_, y_center_deg_, pir_pin);
+ 
+   const uint16_t x_pulse_min = 544;
+   const uint16_t x_pulse_max = 2400;
+@@ -290,7 +295,9 @@
+   bool init_ok = false;
+ 
+   // /pir/state publisher (watch_node が subscribe)
+-  pir_state_pub_ = create_publisher<std_msgs::msg::Bool>("/pir/state", 10);
++  //   transient_local: あとから起動したノードも、最後に送った値（今の値）を受け取れる
++  auto pir_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
++  pir_state_pub_ = create_publisher<std_msgs::msg::Bool>("/pir/state", pir_qos);
+ 
+   try {
+     board_ = std::make_unique<TelemetrixSerial>(port, baud);
+@@ -305,12 +312,14 @@
+     std::this_thread::sleep_for(std::chrono::milliseconds(30));
+ 
+     board_->servo_attach(static_cast<uint8_t>(SERVO_X_PIN), x_pulse_min, x_pulse_max);
+-    board_->servo_write(static_cast<uint8_t>(SERVO_X_PIN), static_cast<int>(x_center_deg_));
++    board_->servo_write(static_cast<uint8_t>(SERVO_X_PIN),
++                        static_cast<int>(std::lround(x_center_deg_)));
+     RCLCPP_INFO(get_logger(), "x_center_deg=%.3f was sent", x_center_deg_);
+     std::this_thread::sleep_for(std::chrono::milliseconds(30));
+ 
+     board_->servo_attach(static_cast<uint8_t>(SERVO_Y_PIN), y_pulse_min, y_pulse_max);
+-    board_->servo_write(static_cast<uint8_t>(SERVO_Y_PIN), static_cast<int>(y_center_deg_));
++    board_->servo_write(static_cast<uint8_t>(SERVO_Y_PIN),
++                        static_cast<int>(std::lround(y_center_deg_)));
+     RCLCPP_INFO(get_logger(), "y_center_deg=%.3f was sent", y_center_deg_);
+     std::this_thread::sleep_for(std::chrono::milliseconds(30));
+ 
+@@ -335,12 +344,21 @@
+   ready_msg.data = init_ok;
+   ready_pub_->publish(ready_msg);
+ 
+-  // /px3_ack publisher
+-  ack_pub_ = create_publisher<std_msgs::msg::Bool>("px3_ack", 10);
++  // PIR の今の値を定期的に送り直す（変化が無くても送る）。
++  // 以前は変化したときだけ送っていたので、受け取る側が 1 回取りこぼすと、
++  // PIR がいったん LOW に戻るまで起動できなかった。
++  if (init_ok) {
++    pir_state_timer_ = create_wall_timer(std::chrono::milliseconds(PIR_STATE_PERIOD_MS),
++                                         std::bind(&Px3ServoNode::publish_pir_state, this));
++  }
+ 
+   // /inference subscriber
++  //   キューは 1 件（最新の指令だけ使う）。以前は 10 件 + 1 件ごとに 30 ms 待っていたため、
++  //   px2 が速く送ると古い角度が溜まり、遅れてサーボに届いていた。
++  //   /px3_ack は受け取るノードが無かったので廃止した。
++  auto angle_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable();
+   sub_ = create_subscription<custom_msgs::msg::AbsResult>(
+-      "inference", 10, std::bind(&Px3ServoNode::on_angle, this, std::placeholders::_1));
++      "inference", angle_qos, std::bind(&Px3ServoNode::on_angle, this, std::placeholders::_1));
+ 
+   // /px_wakeup=false 受信 → pir_detected_ リセット
+   // px2 が WATCH 復帰時に false を publish するタイミングで呼ばれる
+@@ -358,47 +376,57 @@
+   }
+ }
+ 
++// サーボは整数の角度しか受け取らない。切り捨てではなく四捨五入する
++// （切り捨てだと最大 1°、四捨五入なら最大 0.5° のずれ）。待ち時間は入れない。
+ void Px3ServoNode::on_angle(const custom_msgs::msg::AbsResult::SharedPtr msg) {
+-  if (board_) {
+-    board_->servo_write(static_cast<uint8_t>(SERVO_X_PIN), static_cast<int>(msg->x_angle));
+-    board_->servo_write(static_cast<uint8_t>(SERVO_Y_PIN), static_cast<int>(msg->y_angle));
+-    std::this_thread::sleep_for(std::chrono::milliseconds(SERVO_ARRIVAL_WAIT_MS));
+-  }
+-  std_msgs::msg::Bool ack;
+-  ack.data = true;
+-  ack_pub_->publish(ack);
++  if (!board_)
++    return;
++  if (!std::isfinite(msg->x_angle) || !std::isfinite(msg->y_angle))
++    return; // NaN / inf は送らない
++  board_->servo_write(static_cast<uint8_t>(SERVO_X_PIN),
++                      static_cast<int>(std::lround(msg->x_angle)));
++  board_->servo_write(static_cast<uint8_t>(SERVO_Y_PIN),
++                      static_cast<int>(std::lround(msg->y_angle)));
+ }
+ 
+-// PIR 変化通知。read_loop スレッドから呼ばれる。前回値と比較してデバウンス。
++void Px3ServoNode::publish_pir_state() {
++  std_msgs::msg::Bool msg;
++  msg.data = pir_detected_.load();
++  pir_state_pub_->publish(msg);
++}
++
++// PIR 変化通知。read_loop スレッドから呼ばれる。
++// pir_detected_ は「Arduino が最後に報告した値」＝ PIR の今の値を持つ。
+ void Px3ServoNode::on_pir_change(uint8_t /*pin*/, uint8_t value) {
+   const bool new_state = (value != 0);
+   const bool old_state = pir_detected_.exchange(new_state);
+   // [診断ログ] Arduinoから届いた生の値と、エッジ判定結果を毎回出力する。
+-  // 再入場時にこのログが出れば「Arduinoは反応している」、出なければ「DIGITAL_REPORT未達」と切り分け可能。
+   RCLCPP_INFO(get_logger(), "px3: on_pir_change value=%d (old=%d new=%d, edge=%s)", value,
+               static_cast<int>(old_state), static_cast<int>(new_state),
+               (new_state != old_state) ? "YES" : "no");
+   if (new_state == old_state)
+-    return; // 変化なし → 無視（デバウンス兼用）
++    return; // 変化なし（定期送信に任せる）
+ 
+-  // /pir/state publish
++  // 変化したときは、定期送信を待たずにすぐ送る。
+   // read_loop スレッドからの呼び出しだが、rclcpp publisher は
+   // マルチスレッドから呼び出し可能（内部でロック済み）
+-  std_msgs::msg::Bool msg;
+-  msg.data = new_state;
+-  pir_state_pub_->publish(msg);
++  publish_pir_state();
+ }
+ 
+ // px2 がWATCHモードに復帰したとき /px_wakeup=false を受信する。
+-// pir_detected_ を false にリセットして次の PIR エッジ検知を確実に発火させる。
++// 以前はここで pir_detected_ を false に戻していたが、PIR が HIGH のままだと
++// 実際の値と食い違い、次の立ち上がりが来ないまま起動できなくなっていた。
++// 今は値を書き換えず、今の値をそのまま送り直す。
+ void Px3ServoNode::on_watch_resumed(const std_msgs::msg::Bool::SharedPtr msg) {
+-  if (!msg->data && init_ok_) { // init_ok_ チェックは原因7対応も兼ねる
+-    pir_detected_.store(false);
+-    // PIR reporting を再トリガーしてHIGH保持中の再入場でのエッジ消失を解消する
++  if (!msg->data && init_ok_) {
++    // Arduino に今の値を報告させる（報告が来れば on_pir_change で値が更新される）。
++    // 報告が来ない実装でも、pir_detected_ は最後の報告のままなので困らない。
+     if (board_) {
+       board_->retrigger_pir_reporting();
+     }
+-    RCLCPP_INFO(get_logger(), "px3: WATCH resumed → pir_detected_ reset + PIR re-triggered");
++    publish_pir_state();
++    RCLCPP_INFO(get_logger(), "px3: WATCH resumed → PIR state re-published (level=%d)",
++                static_cast<int>(pir_detected_.load()));
+   }
+ }
+ 
+diff -ruN a/SeamlessTrack/src/px3/src/watch_node.cpp b/SeamlessTrack/src/px3/src/watch_node.cpp
+--- a/SeamlessTrack/src/px3/src/watch_node.cpp	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px3/src/watch_node.cpp	2026-11-18 23:52:09.251759911 +0000
+@@ -2,9 +2,10 @@
+ //  watch_node.cpp  — WatchNode 実装
+ //
+ //  subscribe → publish のマッピング:
+-//    /pir/state=true  + px3_ready=true  → /px_wakeup=true
+-//    /pir/state=false                   → DEBUG ログのみ
+-//    /px_wakeup=false (from px2)        → wakeup_sent_ reset
++//    /pir/state=true（今 HIGH）+ px3_ready=true → /px_wakeup=true
++//    /pir/state=false                   → 値を覚えるだけ
++//    /px_wakeup=false (from px2)        → wakeup_sent_ reset。rewake_delay_ms のあと、
++//                                         PIR がまだ HIGH なら再び /px_wakeup=true
+ // ============================================================
+ 
+ #include <cinttypes>
+@@ -16,6 +17,7 @@
+ WatchNode::WatchNode(const rclcpp::NodeOptions& options) : Node("watch_node", options) {
+   // ---- パラメータ ----
+   pir_debounce_ms_ = declare_parameter<int>("pir_debounce_ms", 200);
++  rewake_delay_ms_ = declare_parameter<int>("rewake_delay_ms", 1000);
+ 
+   // ---- Publisher ----
+   // /px_wakeup: transient_local — px2 が後から起動しても受信できる
+@@ -32,8 +34,10 @@
+       "px3_ready", ready_qos, std::bind(&WatchNode::on_px3_ready, this, std::placeholders::_1));
+ 
+   // ---- /pir/state subscriber ----
++  // transient_local: px3 が先に起動済みでも、最後に送られた値（今の値）を受け取れる
++  auto pir_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
+   pir_sub_ = create_subscription<std_msgs::msg::Bool>(
+-      "/pir/state", 10, std::bind(&WatchNode::on_pir_state, this, std::placeholders::_1));
++      "/pir/state", pir_qos, std::bind(&WatchNode::on_pir_state, this, std::placeholders::_1));
+ 
+   // ---- /px_wakeup feedback subscriber ----
+   // px2 が detect mode を終了して watch mode に戻ったとき false を publish する
+@@ -42,60 +46,74 @@
+       "px_wakeup", wakeup_qos,
+       std::bind(&WatchNode::on_wakeup_feedback, this, std::placeholders::_1));
+ 
+-  RCLCPP_INFO(get_logger(), "watch_node ready. pir_debounce_ms=%d", pir_debounce_ms_);
++  RCLCPP_INFO(get_logger(), "watch_node ready. pir_debounce_ms=%d rewake_delay_ms=%d",
++              pir_debounce_ms_, rewake_delay_ms_);
+ }
+ 
+-// px3 初期化完了を受け取る。true になるまで PIR 検知を無視する。
++// px3 初期化完了を受け取る。準備前に PIR が HIGH になっていた場合は、ここで起動する。
+ void WatchNode::on_px3_ready(const std_msgs::msg::Bool::SharedPtr msg) {
+   if (msg->data) {
+     px3_ready_.store(true);
+     RCLCPP_INFO(get_logger(), "watch_node: px3_ready received → PIR monitoring active");
++    try_wakeup();
+   }
+ }
+ 
+-// PIR 検知(true): px3_ready・未送信・デバウンス通過の3条件を満たせば wakeup 送信。
+-// PIR 解除(false): DEBUG ログのみ。wakeup リセットは px2 からの /px_wakeup=false で行う。
++// PIR の今の値を受け取る（変化したとき + 200 ms ごと）。値を覚えて、起動できるか確かめる。
+ void WatchNode::on_pir_state(const std_msgs::msg::Bool::SharedPtr msg) {
+-  if (!msg->data) {
+-    RCLCPP_DEBUG(get_logger(), "watch_node: PIR cleared");
+-    return;
++  const bool was = pir_level_.exchange(msg->data);
++  if (was != msg->data) {
++    RCLCPP_INFO(get_logger(), "watch_node: PIR %s", msg->data ? "HIGH" : "LOW");
+   }
++  if (msg->data)
++    try_wakeup();
++}
+ 
+-  // ガード1: px3 が未 ready なら無視
++// 条件がそろっていれば wakeup を送る。そろっていなければ何もしない
++// （PIR が HIGH のままなら、次の /pir/state でもう一度ここに来る）。
++void WatchNode::try_wakeup() {
++  if (!pir_level_.load())
++    return;
++
++  // ガード1: px3 が未 ready なら待つ（ready になったとき on_px3_ready から呼ばれる）
+   if (!px3_ready_.load()) {
+-    RCLCPP_WARN(get_logger(), "watch_node: PIR detected but px3 not ready, ignoring");
++    RCLCPP_DEBUG(get_logger(), "watch_node: PIR is HIGH but px3 not ready yet");
+     return;
+   }
+ 
+   // ガード2: wakeup 送信済みなら重複送信しない（px2 から false が来るまでブロック）
+-  if (wakeup_sent_.load()) {
+-    RCLCPP_DEBUG(get_logger(), "watch_node: PIR detected but wakeup already sent");
++  if (wakeup_sent_.load())
+     return;
+-  }
+ 
+-  // ガード3: 前回 wakeup から pir_debounce_ms_ 以内は無視
+   const auto now = std::chrono::steady_clock::now();
+-  const int64_t elapsed_ms =
+-      std::chrono::duration_cast<std::chrono::milliseconds>(now - last_wakeup_t_).count();
+-  if (elapsed_ms < static_cast<int64_t>(pir_debounce_ms_)) {
+-    RCLCPP_DEBUG(get_logger(), "watch_node: PIR debounce (%" PRId64 " ms < %d ms)",
+-                 static_cast<int64_t>(elapsed_ms), pir_debounce_ms_);
++  using std::chrono::duration_cast;
++  using std::chrono::milliseconds;
++
++  // ガード3: 前回 wakeup から pir_debounce_ms_ 以内は送らない
++  if (duration_cast<milliseconds>(now - last_wakeup_t_).count() <
++      static_cast<int64_t>(pir_debounce_ms_))
++    return;
++
++  // ガード4: px2 が WATCH に戻ってから rewake_delay_ms_ 以内は送らない
++  if (duration_cast<milliseconds>(now - watch_resumed_t_).count() <
++      static_cast<int64_t>(rewake_delay_ms_))
+     return;
+-  }
+ 
+   // wakeup 送信
+   last_wakeup_t_ = now;
+   wakeup_sent_.store(true);
+   publish_wakeup(true);
+ 
+-  RCLCPP_INFO(get_logger(), "watch_node: PIR detected → /px_wakeup = true");
++  RCLCPP_INFO(get_logger(), "watch_node: PIR is HIGH → /px_wakeup = true");
+ }
+ 
+ // /px_wakeup=false (from px2) を受け取り wakeup_sent_ をリセット。
+ // 自ノードの true publish は条件 !msg->data で自動的に無視される。
++// PIR がまだ HIGH なら、rewake_delay_ms_ のあと、次の /pir/state で再び起動する。
+ void WatchNode::on_wakeup_feedback(const std_msgs::msg::Bool::SharedPtr msg) {
+   if (!msg->data && wakeup_sent_.load()) {
+     wakeup_sent_.store(false);
++    watch_resumed_t_ = std::chrono::steady_clock::now();
+     RCLCPP_INFO(
+         get_logger(),
+         "watch_node: /px_wakeup=false received from px2 → state reset, PIR monitoring resumed");
+diff -ruN a/SeamlessTrack/src/px3_launch/launch/px3_system_launch.py b/SeamlessTrack/src/px3_launch/launch/px3_system_launch.py
+--- a/SeamlessTrack/src/px3_launch/launch/px3_system_launch.py	2026-11-18 03:31:42.000000000 +0000
++++ b/SeamlessTrack/src/px3_launch/launch/px3_system_launch.py	2026-11-18 23:52:09.252051795 +0000
+@@ -22,13 +22,24 @@
+ 
+     # px2 params
+     arg_watch_f = DeclareLaunchArgument("watch_fps", default_value="10.0")
+-    arg_lost = DeclareLaunchArgument("lost_max_frames", default_value="15")
++    # 見失い判定（秒）。最後の検出からこの時間が過ぎたら WATCH に戻る
++    arg_lost = DeclareLaunchArgument("lost_timeout_s", default_value="1.0")
+     arg_save = DeclareLaunchArgument("save_frames", default_value="false")
+     arg_conf = DeclareLaunchArgument("conf_threshold", default_value="0.25")
+     # arg_prepro_use = DeclareLaunchArgument("preprocess_enable", default_value="true")
+     arg_active_w = DeclareLaunchArgument("active_width", default_value="1920")
+     arg_active_h = DeclareLaunchArgument("active_height", default_value="1080")
+     arg_active_f = DeclareLaunchArgument("active_fps", default_value="30.0")
++    # カメラ側に溜めるフレーム数（1 = 古いフレームを溜めない）
++    arg_cap_buf = DeclareLaunchArgument("capture_buffer_size", default_value="1")
++    # true: 別スレッドでカメラを読み続け、最新の 1 枚だけを使う
++    arg_cap_thread = DeclareLaunchArgument("capture_thread", default_value="true")
++    # ファイルの場所（空なら share/px2/weights/ と /tmp/px2_frames を使う）
++    arg_model_path = DeclareLaunchArgument("model_path", default_value="")
++    arg_calib_path = DeclareLaunchArgument("calib_path", default_value="")
++    arg_save_dir = DeclareLaunchArgument("save_dir", default_value="")
++    # サーボが指令に追いつくまでの遅れ（ms）。指令角の履歴を引くときに使う
++    arg_servo_lag = DeclareLaunchArgument("servo_lag_ms", default_value="0.0")
+ 
+     # inference backend (Jetson GPU)
+     arg_ort_provider = DeclareLaunchArgument("ort_provider", default_value="tensorrt")
+@@ -48,16 +59,23 @@
+     # embedded px3 params
+     arg_serial = DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0")
+     arg_baudrate = DeclareLaunchArgument("baudrate", default_value="115200")
++    arg_pir_pin = DeclareLaunchArgument("pir_pin", default_value="2")
+ 
+     # watch_node params
+     arg_pir_debounce = DeclareLaunchArgument("pir_debounce_ms", default_value="200")
++    # px2 が WATCH に戻ってから、この時間は再起動しない（ms）
++    arg_rewake_delay = DeclareLaunchArgument("rewake_delay_ms", default_value="1000")
+ 
+     # PD controller gains and step limit
++    #   kd_* は「1 フレームあたりの誤差の変化」に掛ける（dt では割らない）
+     arg_max_step = DeclareLaunchArgument("max_step_deg", default_value="3.0")
+     arg_kp_yaw = DeclareLaunchArgument("kp_yaw", default_value="0.3")
+-    arg_kd_yaw = DeclareLaunchArgument("kd_yaw", default_value="0.2")
++    arg_kd_yaw = DeclareLaunchArgument("kd_yaw", default_value="0.3")
+     arg_kp_pitch = DeclareLaunchArgument("kp_pitch", default_value="0.3")
+-    arg_kd_pitch = DeclareLaunchArgument("kd_pitch", default_value="0.2")
++    arg_kd_pitch = DeclareLaunchArgument("kd_pitch", default_value="0.3")
++    # 死帯（度）。サーボへの指令が整数のうちは 1.0 未満にしない
++    arg_dz_yaw = DeclareLaunchArgument("dead_zone_yaw_deg", default_value="1.0")
++    arg_dz_pitch = DeclareLaunchArgument("dead_zone_pitch_deg", default_value="1.0")
+ 
+     # ----------------------------------------------------------
+     #  px2 node (px3 embedded inside)
+@@ -71,8 +89,8 @@
+         parameters=[
+             {
+                 "device_path": LaunchConfiguration("camera_path"),
+-                "lost_max_frames": ParameterValue(
+-                    LaunchConfiguration("lost_max_frames"), value_type=int
++                "lost_timeout_s": ParameterValue(
++                    LaunchConfiguration("lost_timeout_s"), value_type=float
+                 ),
+                 "save_frames": ParameterValue(LaunchConfiguration("save_frames"), value_type=bool),
+                 "conf_threshold": ParameterValue(
+@@ -98,14 +116,35 @@
+                 "kd_yaw": ParameterValue(LaunchConfiguration("kd_yaw"), value_type=float),
+                 "kp_pitch": ParameterValue(LaunchConfiguration("kp_pitch"), value_type=float),
+                 "kd_pitch": ParameterValue(LaunchConfiguration("kd_pitch"), value_type=float),
++                "dead_zone_yaw_deg": ParameterValue(
++                    LaunchConfiguration("dead_zone_yaw_deg"), value_type=float
++                ),
++                "dead_zone_pitch_deg": ParameterValue(
++                    LaunchConfiguration("dead_zone_pitch_deg"), value_type=float
++                ),
++                # 次の 3 つは px2 が受け取り、同じプロセスの px3 に渡す
++                # （x_center_deg / y_center_deg も同じように px3 に渡る）
+                 "serial_port": LaunchConfiguration("serial_port"),
+                 "baudrate": ParameterValue(LaunchConfiguration("baudrate"), value_type=int),
++                "pir_pin": ParameterValue(LaunchConfiguration("pir_pin"), value_type=int),
+                 "watch_fps": ParameterValue(LaunchConfiguration("watch_fps"), value_type=float),
+                 "active_width": ParameterValue(LaunchConfiguration("active_width"), value_type=int),
+                 "active_height": ParameterValue(
+                     LaunchConfiguration("active_height"), value_type=int
+                 ),
+                 "active_fps": ParameterValue(LaunchConfiguration("active_fps"), value_type=float),
++                "capture_buffer_size": ParameterValue(
++                    LaunchConfiguration("capture_buffer_size"), value_type=int
++                ),
++                "capture_thread": ParameterValue(
++                    LaunchConfiguration("capture_thread"), value_type=bool
++                ),
++                "model_path": ParameterValue(LaunchConfiguration("model_path"), value_type=str),
++                "calib_path": ParameterValue(LaunchConfiguration("calib_path"), value_type=str),
++                "save_dir": ParameterValue(LaunchConfiguration("save_dir"), value_type=str),
++                "servo_lag_ms": ParameterValue(
++                    LaunchConfiguration("servo_lag_ms"), value_type=float
++                ),
+                 "ort_provider": LaunchConfiguration("ort_provider"),
+                 "trt_fp16": ParameterValue(LaunchConfiguration("trt_fp16"), value_type=bool),
+                 "trt_cache_dir": LaunchConfiguration("trt_cache_dir"),
+@@ -132,6 +171,9 @@
+                 "pir_debounce_ms": ParameterValue(
+                     LaunchConfiguration("pir_debounce_ms"), value_type=int
+                 ),
++                "rewake_delay_ms": ParameterValue(
++                    LaunchConfiguration("rewake_delay_ms"), value_type=int
++                ),
+             }
+         ],
+     )
+@@ -155,6 +197,12 @@
+             arg_active_w,
+             arg_active_h,
+             arg_active_f,
++            arg_cap_buf,
++            arg_cap_thread,
++            arg_model_path,
++            arg_calib_path,
++            arg_save_dir,
++            arg_servo_lag,
+             arg_ort_provider,
+             arg_trt_fp16,
+             arg_trt_cache_dir,
+@@ -171,11 +219,15 @@
+             arg_kd_yaw,
+             arg_kp_pitch,
+             arg_kd_pitch,
++            arg_dz_yaw,
++            arg_dz_pitch,
+             # px3 params
+             arg_serial,
+             arg_baudrate,
++            arg_pir_pin,
+             # watch_node params
+             arg_pir_debounce,
++            arg_rewake_delay,
+             # nodes
+             px2_node,
+             watch_node,
+diff -ruN a/ci_checks/check_px_parameter_contract.py b/ci_checks/check_px_parameter_contract.py
+--- a/ci_checks/check_px_parameter_contract.py	2026-11-18 03:31:42.000000000 +0000
++++ b/ci_checks/check_px_parameter_contract.py	2026-11-18 22:40:09.593292020 +0000
+@@ -38,10 +38,21 @@
+     r"declare_parameter\s*<\s*(?P<cpp_type>[^>]+?)\s*>\s*"
+     r"\(\s*\"(?P<name>[^\"]+)\"\s*,\s*"
+     r"(?P<default>\"(?:\\.|[^\"\\])*\"|true|false|"
+-    r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*\)",
++    r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|"
++    r"[A-Za-z_][A-Za-z0-9_:]*)\s*\)",
+     re.MULTILINE,
+ )
+ 
++# A default may be a named constant (e.g. ``declare_parameter<int>("pir_pin", PIR_PIN)``).
++# The constant is resolved from ``constexpr``/``const`` definitions in the same node's sources.
++_CPP_LITERAL = r"\"(?:\\.|[^\"\\])*\"|true|false|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
++_CPP_CONSTANT_RE = re.compile(
++    r"\b(?:constexpr|const)\s+[A-Za-z_][\w:<>\s\*]*?\b(?P<name>[A-Za-z_]\w*)\s*"
++    r"(?:=\s*(?P<eq>" + _CPP_LITERAL + r")\s*;|\{\s*(?P<brace>" + _CPP_LITERAL + r")\s*\}\s*;)",
++    re.MULTILINE,
++)
++_CPP_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_:]*")
++
+ 
+ @dataclass(frozen=True)
+ class CppParameter:
+@@ -235,21 +246,48 @@
+ ) -> tuple[dict[str, CppParameter], list[Issue]]:
+     parameters: dict[str, CppParameter] = {}
+     issues: list[Issue] = []
++    texts: list[tuple[Path, str]] = []
+     for path in paths:
+         if not path.exists():
+             raise ContractParseError(f"C++ input file not found: {path}")
+         text = path.read_text(encoding="utf-8", errors="replace")
+-        search_text = _strip_cpp_comments(text)
++        texts.append((path, _strip_cpp_comments(text)))
++
++    # Named constants defined anywhere in this node's sources (header or .cpp).
++    constants: dict[str, str] = {}
++    for _, search_text in texts:
++        for match in _CPP_CONSTANT_RE.finditer(search_text):
++            constants.setdefault(match.group("name"), match.group("eq") or match.group("brace"))
++
++    for path, search_text in texts:
+         for match in _CPP_PARAMETER_RE.finditer(search_text):
+             name = match.group("name")
++            raw_default = match.group("default")
++            line = _line_number(search_text, match.start())
++            if raw_default not in ("true", "false") and _CPP_IDENTIFIER_RE.fullmatch(raw_default):
++                resolved = constants.get(raw_default.rsplit("::", 1)[-1])
++                if resolved is None:
++                    issues.append(
++                        Issue(
++                            "UNRESOLVED_CPP_DEFAULT",
++                            f"`{node}.{name}` uses the named default `{raw_default}` "
++                            f"(`{path}:{line}`), but no literal definition of it was found "
++                            "in this node's sources.",
++                        )
++                    )
++                    continue
++                default = _cpp_default(resolved)
++                raw_default = f"{raw_default} (= {resolved})"
++            else:
++                default = _cpp_default(raw_default)
+             param = CppParameter(
+                 node=node,
+                 name=name,
+                 cpp_type=match.group("cpp_type").strip(),
+-                default=_cpp_default(match.group("default")),
+-                raw_default=match.group("default"),
++                default=default,
++                raw_default=raw_default,
+                 path=path,
+-                line=_line_number(search_text, match.start()),
++                line=line,
+             )
+             if name in parameters:
+                 previous = parameters[name]
+diff -ruN a/ci_checks/run_local.sh b/ci_checks/run_local.sh
+--- a/ci_checks/run_local.sh	2026-11-18 03:31:42.000000000 +0000
++++ b/ci_checks/run_local.sh	2026-11-18 22:39:49.199573226 +0000
+@@ -26,8 +26,7 @@
+ echo "== px-parameter-contract"
+ uv run python ci_checks/check_px_parameter_contract.py \
+   --repo-root . \
+-  --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg" \
++  --allow-embedded-route "px2:px3=serial_port,baudrate,x_center_deg,y_center_deg,pir_pin" \
+   --allow-default-override px2.device_path \
+-  --allow-default-override px2.max_step_deg \
+   --report /tmp/px-parameter-contract-report.md
+ echo "ALL CHECKS PASSED"
+diff -ruN a/ci_checks/tests/test_check_px_parameter_contract.py b/ci_checks/tests/test_check_px_parameter_contract.py
+--- a/ci_checks/tests/test_check_px_parameter_contract.py	2026-11-18 03:31:42.000000000 +0000
++++ b/ci_checks/tests/test_check_px_parameter_contract.py	2026-11-18 22:40:03.570559750 +0000
+@@ -249,6 +249,60 @@
+         )
+         self.assertTrue(result.passed, px_contract.render_markdown(result))
+ 
++    def test_named_constant_default_is_resolved(self) -> None:
++        launch = """
++from launch_ros.actions import Node
++from launch.actions import DeclareLaunchArgument
++from launch.substitutions import LaunchConfiguration
++
++def generate_launch_description():
++    pin = DeclareLaunchArgument("pir_pin", default_value="2")
++    node = Node(name="px3", parameters=[{
++        "pir_pin": ParameterValue(LaunchConfiguration("pir_pin"), value_type=int),
++    }])
++"""
++        result = self.run_contract(
++            launch,
++            {
++                "px3": """
++inline constexpr int PIR_PIN = 2; // SB612B OUT
++void build() {
++  const int pir_pin = declare_parameter<int>("pir_pin", PIR_PIN);
++}
++"""
++            },
++        )
++        self.assertTrue(result.passed, px_contract.render_markdown(result))
++
++        mismatch = self.run_contract(
++            launch,
++            {
++                "px3": """
++inline constexpr int PIR_PIN = 3;
++void build() { declare_parameter<int>("pir_pin", PIR_PIN); }
++"""
++            },
++        )
++        self.assertIn("DEFAULT_VALUE_MISMATCH", [issue.code for issue in mismatch.issues])
++
++    def test_unresolved_named_default_is_reported(self) -> None:
++        result = self.run_contract(
++            """
++from launch_ros.actions import Node
++from launch.actions import DeclareLaunchArgument
++from launch.substitutions import LaunchConfiguration
++
++def generate_launch_description():
++    pin = DeclareLaunchArgument("pir_pin", default_value="2")
++    node = Node(name="px3", parameters=[{
++        "pir_pin": ParameterValue(LaunchConfiguration("pir_pin"), value_type=int),
++    }])
++""",
++            {"px3": 'void build() { declare_parameter<int>("pir_pin", SOME_PIN); }'},
++        )
++        self.assertFalse(result.passed)
++        self.assertIn("UNRESOLVED_CPP_DEFAULT", [issue.code for issue in result.issues])
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff -ruN a/docs/03_commands.md b/docs/03_commands.md
+--- a/docs/03_commands.md	2026-11-18 03:31:42.000000000 +0000
++++ b/docs/03_commands.md	2026-11-19 00:02:07.152887857 +0000
+@@ -230,8 +230,19 @@
+ | `PROVIDER` | `trt` / `cpu` | `trt` |
+ | `TRT_FP16` | `true`=FP16 / `false`=FP32 | `true` |
+ | `TRT_ENGINE` | 使う .engine（空なら `engines/yolo11_fp16.engine` か `fp32` を自動で使う） | 空 |
+-| `SAVE_FRAMES` | 検出画像を `install/px2/share/px2/data/` に保存 | `true` |
+-| `TIMING_CSV` | 1 フレームごとの時間を CSV に | 空 |
++| `SAVE_FRAMES` | 検出したフレームを `frames/`（`SAVE_DIR`）に PNG で保存する（1 フレーム 1 枚。ループが遅くなる） | `false` |
++| `TIMING_CSV` | 1 フレームごとの時間・誤差・指令角を CSV に書く | 空 |
++| `KP` / `KD` | PD ゲイン（両軸共通）。`KP` は実質的に積分、`KD` は実質的に比例として効く。`KP` を上げる前に遅延を測ること | `0.3` / `0.3` |
++| `MAX_STEP` | 1 フレームで動かす最大量（度） | `3.0` |
++| `DEAD_ZONE` | 死帯（度）。指令が整数のうちは 1.0 未満にしない | `1.0` |
++| `LOST_TIMEOUT` | 見失ってから WATCH に戻るまでの時間（秒） | `1.0` |
++| `ACTIVE_W` / `ACTIVE_H` / `ACTIVE_FPS` | カメラの取り込み | `1920` / `1080` / `30.0` |
++| `CAP_BUFFER` | カメラ側に溜めるフレーム数（0 = 指定しない）。fps が半分になるカメラでは 2 | `1` |
++| `LATEST_FRAME` | `true` = 別スレッドでカメラを読み続け、最新の 1 枚だけを使う | `true` |
++| `SAVE_DIR` | 検出画像の保存先 | `SeamlessTrack/frames` |
++| `MODEL_PATH` / `CALIB_PATH` | モデルと校正ファイル（空なら `install/px2/share/px2/weights/`） | 空 |
++| `SERVO_LAG_MS` | サーボが指令に追いつくまでの遅れ（ms）。CSV の `servo_at_capture_*` に使う | `0.0` |
++| `REWAKE_DELAY_MS` | WATCH に戻ってから、PIR が HIGH のままでも再起動しない時間（ms） | `1000` |
+ 
+ ### PIR を使わずに確認（別の端末から）
+ ```bash
+@@ -239,7 +250,7 @@
+ docker exec -it $(docker ps -q --filter ancestor=px-jetson:latest | head -1) bash
+ # 🐳（入った先）
+ source /opt/ros/humble/setup.bash && source /ros2_ws/work/install/setup.bash
+-ros2 topic echo /pir/state                         # 手を振って data: true が出れば PIR は正常
++ros2 topic echo /pir/state                         # 200 ms ごとに今の値が出る。手を振って true に変われば PIR は正常
+ ros2 topic pub --once --qos-durability transient_local --qos-reliability reliable \
+   /px_wakeup std_msgs/msg/Bool "{data: true}"      # DETECT に強制的に入れる
+ ```
+@@ -324,6 +335,9 @@
+ | colcon の symlink エラー | 🐳 `rm -rf build install log && ./build_px.sh` |
+ | カメラが使用中 | 🐳 `./kill_camera_users.sh` |
+ | 起動しても何も起きない | PIR が反応していない → 8 章の「PIR を使わずに確認」、配線は docs/WIRING.md |
++| 起動してもサーボが中央に動かない | px2 の初期化（カメラ、モデル、エンジン）で失敗すると px3 が作られない → px2 の起動ログで `Failed to open camera`、`model not found`、`[trt]` のエラーを探す。px3 の起動（4 秒待ち）はエンジンを読み終わったあとに始まる |
++| ループが約 15 Hz しか出ない（`loop_ms` が約 66 ms） | カメラがバッファ 1 枚で 1 フレームおきになっている → `CAP_BUFFER=2 ./launch_px.sh` と比べる |
++| `model not found` / `Calibration not loaded` | `./build_px.sh` をやり直す（`install/px2/share/px2/weights/` に置かれる）。または `MODEL_PATH=...` `CALIB_PATH=...` で場所を指定 |
+ | `Skipping tactic ... insufficient memory` | 🟩 `./scripts/perf_mode.sh --free-mem` → 🐳 `./make_engines.sh` |
+ | TensorRT が使えず CPU に落ちる | 🟩 `docker info \| grep -i runtime`（nvidia）、🐳 ビルドログの `px2: TensorRT enabled` |
+ | `make` で ONNX Runtime のダウンロードが 404 | 🟩 `./scripts/export_ort_from_image.sh` を先に実行 |
+diff -ruN a/docs/04_fix_log_2026-11-19.md b/docs/04_fix_log_2026-11-19.md
+--- a/docs/04_fix_log_2026-11-19.md	1970-01-01 00:00:00.000000000 +0000
++++ b/docs/04_fix_log_2026-11-19.md	2026-11-19 01:11:36.519966043 +0000
+@@ -0,0 +1,406 @@
++# 04. 修正記録（2026-11-19）— 修正 F01〜F27
++
++2026-11-18 時点の PX4.4 のコードに入れた修正 27 件の記録です。2 回に分けて入れた修正（r1：F01〜F17、r2：F18〜F27）を、この 1 つの文書にまとめました。
++
++- **状態：27 件とも、2026-11-19 に実機で動作を確認済みです（報告：問題なし）。** 追従誤差がどれだけ減ったか（S1〜S3）は、まだ測っていません
++- 変更したファイル：23 個。新しいファイル：8 個。改名：1 個（一覧は 8 章）
++- 差分：`docs/04_fix_patch_2026-11-19.patch`（2026-11-18 のコードに対する差分。当て方は 7 章）
++- 行番号は、すべて修正後（F27 まで入れたあと）のコードのものです。パスは、断りがなければ `SeamlessTrack/` からの相対です
++- まだ入れていない修正は 6 章、レビュー結果への対応は 9 章にあります
++- 全体の状態と今後の段階は `docs/05_roadmap_2026-11-19.md`（ロードマップ）にあります
++
++---
++
++## 1. 動きが変わった点（2026-11-18 のコードとの違い）
++
++### 1.1 制御
++
++| 変わった点 | 以前 | 今 | 変え方 |
++|---|---|---|---|
++| D ゲイン `kd_*` の意味 | 誤差の変化を dt で割った値に掛ける | 1 フレームあたりの誤差の変化に掛ける（dt で割らない） | 下の「Kd の換算」 |
++| D ゲインの既定値 | 0.2（30 Hz で実質 6.0） | 0.3 | `KD=...` |
++| 死帯 | 2.0°（コードに固定） | 1.0°（パラメータ） | `DEAD_ZONE=...` |
++| 1 回の最大量の既定値 | コード 1.2°、launch 3.0° | どちらも 3.0° | `MAX_STEP=...` |
++| 角度の整数化 | 切り捨て | 四捨五入 | なし |
++| 再検出時の位置 | 中央（0）に戻す | 今のサーボ角から再開 | なし |
++| 見失いの判定 | `lost_max_frames`（フレーム数） | `lost_timeout_s`（秒）。**パラメータ名が変わった** | `LOST_TIMEOUT=...` |
++
++**Kd の換算**：新しい Kd = 以前の Kd ÷ dt（秒）。30 Hz なら dt ≒ 0.033 秒です。
++
++| 以前の Kd（dt で割る） | 30 Hz での新しい Kd |
++|---|---|
++| 0.2（以前の既定） | 6.0 |
++| 0.02（ロードマップ初版の案） | 0.6 |
++| 0.01 | 0.3（今の既定） |
++
++**Kp と Kd の実質的な意味**：この制御は「位置に足していく」形（`pos += Kp×誤差 + Kd×誤差の変化`）です。位置で見ると、Kp は実質的に**積分**のゲイン、Kd は実質的に**比例**のゲインとして効きます。Kp は、遅延が長いほど行き過ぎます。調整の順番と目安は 5 章にあります。
++
++### 1.2 カメラと PIR
++
++| 変わった点 | 以前 | 今 | 変え方 |
++|---|---|---|---|
++| カメラの読み方 | 処理スレッドが 1 枚ずつ読む | 別スレッドが読み続け、処理は最新の 1 枚だけを使う | `LATEST_FRAME=false` で以前の読み方 |
++| WATCH 中のカメラ | `watch_fps` で読み捨て | 取り出すだけ（JPEG の展開はしない）。起動要求は 50 ms ごとに確かめる | `LATEST_FRAME=false` |
++| DETECT に入るときのカメラの再設定 | する | しない（読み取りスレッドがカメラを使っているため）。`LATEST_FRAME=false` のときはする | `LATEST_FRAME=false` |
++| カメラのバッファ | 指定なし | 1 枚を要求 | `CAP_BUFFER=...`（0 = 指定しない） |
++| `/pir/state` の意味 | 変化したときだけ送る | 今の値。変化したとき + 200 ms ごとに送る。QoS は `transient_local` | なし |
++| PIR での起動 | 立ち上がり（LOW → HIGH の瞬間） | 今 HIGH なら起動 | なし |
++| WATCH に戻った直後の再起動 | Arduino が値を報告し直した場合だけ | 1 秒待ってから。PIR が HIGH のままなら必ず再起動する | `REWAKE_DELAY_MS=...` |
++
++`ros2 topic echo /pir/state` は、200 ms ごとに今の値が流れます。
++
++### 1.3 ファイル、ログ、計測
++
++| 変わった点 | 以前 | 今 | 変え方 |
++|---|---|---|---|
++| モデルと校正ファイルの場所 | `/ros2_ws/work/src/px2/weights/` に固定 | `install/px2/share/px2/weights/`（ビルドで置かれる） | `MODEL_PATH=...` `CALIB_PATH=...` |
++| 検出画像の保存 | 既定で保存（検出 1 フレームに PNG 2 枚） | 既定で保存しない。保存するときは 1 フレーム 1 枚 | `SAVE_FRAMES=true` |
++| 検出画像の保存先 | `src/px2/data/` に固定 | `SeamlessTrack/frames/` | `SAVE_DIR=...` |
++| 毎フレームのログ | INFO | DEBUG（INFO は 1 秒に 1 行） | 4.3 節 |
++| 計測 CSV の列 | 14 列 | 27 列（後ろに 13 列追加。前の列の並びは同じ） | なし |
++| CSV の `first_frame` | 最初に検出するまで 1 | DETECT に入った最初の 1 フレームだけ 1 | なし |
++| CSV の `capture_ms` | フレームを読むのにかかった時間 | 前の処理が終わってから次のフレームを受け取るまでの時間 | なし |
++| ノードを作る順番 | px3 → px2 | px2 → px3（px3 のパラメータを px2 から渡すため） | なし |
++| `/px3_ack` トピック | px3 が送っていた（受け取るノードなし） | 廃止 | なし |
++
++ノードを作る順番を変えたので、px2 の初期化（カメラ、モデル、エンジン）で失敗すると px3 は作られず、サーボは中央に動きません。「サーボが動かない」ときは、まず px2 の起動ログを見てください。
++
++---
++
++## 2. 修正の一覧
++
++「課題」はロードマップの課題番号です。R と C は、修正 F01〜F17 のレビュー結果（`docs/06_review_of_fixes_F01-F17.md`）の番号です。
++
++### 2.1 制御
++
++| ID | 課題 | 直した内容 | 修正箇所 |
++|---|---|---|---|
++| F01 | 1 | D 項を dt で割らない形に変更。`commit(err, use_d)` に変えた | `src/px2/include/control/axis_pd_controller.hpp:94-104` |
++| F02 | 17 | 死帯の中でも誤差を覚える `observe()` を追加。直前のフレームで検出が無いときは D 項を使わない | `axis_pd_controller.hpp:77-79`、`src/px2/src/inference.cpp:474-496, 511` |
++| F03 | 2、19 | 死帯をパラメータ `dead_zone_yaw_deg` / `dead_zone_pitch_deg` にした（既定 1.0） | `inference.cpp:144-147`、`src/px2/include/inference.h`、launch、`launch_px.sh` |
++| F04 | 2 | サーボへの角度を四捨五入（`std::lround`）。NaN / inf は送らない | `src/px3/src/px3_servo_node.cpp:316, 322, 381-390` |
++| F05 | 6 | 再検出時に今のサーボ角から再開する `resetAtServoDeg()` を追加。初期値も中心角に合わせた | `axis_pd_controller.hpp:61-64`、`inference.cpp:120-121, 283-284` |
++| F06 | 16 | 位置 `pos_deg` を可動範囲に収める（端で溜まり続けない） | `axis_pd_controller.hpp:101` |
++| F07 | 4 | `max_step_deg` の既定を 3.0 に統一。CI の除外（`--allow-default-override px2.max_step_deg`）を削除 | `inference.cpp:138`、`.github/workflows/px-parameter-contract.yml`、`ci_checks/run_local.sh`（リポジトリの一番上から） |
++| F08 | 15 | launch の値を px2 経由で px3 に渡す。対象は `serial_port`、`baudrate`、`x_center_deg`、`y_center_deg`、`pir_pin` | `inference.cpp:130-132, 248-256, 568-578`、`px3_servo_node.cpp:286-289`、launch |
++| F20 | C1 | 「Kp は実質的に積分、Kd は実質的に比例」と遅延の目安を、コメントと変数の説明に追加。動きは同じ | `axis_pd_controller.hpp:84-89`、`launch_px.sh:14-31`、`README.md`、`README_jp.md`、`docs/03_commands.md` |
++
++### 2.2 計測
++
++| ID | 課題 | 直した内容 | 修正箇所 |
++|---|---|---|---|
++| F09 | 10 | 計測 CSV に 6 列を追加：`detected`、`yaw_err_deg`、`pitch_err_deg`、`cmd_x_deg`、`cmd_y_deg`、`published` | `inference.cpp:90-109, 527-551` |
++| F10 | 10 | 集計（`summarize.py`）に「追従」の表を追加。`--distance-m` で cm 換算の距離を指定 | `bench/summarize.py:81-153, 208-210, 268-309` |
++| F21 | C3 | CSV に `session_id`（DETECT に入るたびに 1 増える）と `to_watch`（WATCH に戻ったフレームで 1）を追加。`first_frame` を「最初の 1 フレームだけ 1」に修正 | `inference.cpp:94-109, 277, 441, 506-509, 541`、`inference.h:151` |
++| F22 | C3 | 集計に「検出率」「DETECT に入った回数」「WATCH に戻った回数」「フレームの古さ」を追加。指令変化は横と縦の両方。「見失い」を「取りこぼし」に改名。追従の集計では `first_frame=1` の行を除外しない | `bench/summarize.py:40-47, 81-153, 268-309` |
++| F27 | 段階 11 の準備 | 指令角の履歴を残す。フレームを撮った時刻の指令角（`servo_at_capture_x_deg` / `y`）と、人の絶対角（`target_abs_x_deg` / `y` = 撮影時の指令角 + 誤差）を CSV に記録。**記録するだけで、制御には使っていない**。`servo_lag_ms` でサーボの遅れを補える | 新しいファイル `src/px2/include/control/command_history.hpp`、`inference.cpp:122-127, 322-325, 463-471, 541-548`、`inference.h:129-132`、launch、`launch_px.sh:52, 96` |
++
++### 2.3 遅延とカメラ
++
++| ID | 課題 | 直した内容 | 修正箇所 |
++|---|---|---|---|
++| F11 | 12 | `undetect_` の保存を削除（検出 1 フレームに 1 枚）。`SAVE_FRAMES` の既定を `false` に | `inference.cpp:499-501`、`launch_px.sh` |
++| F12 | 13 | `/inference` の受信キューを 10 → 1。1 件ごとの 30 ms の待ちと `/px3_ack` を削除 | `px3_servo_node.cpp:355-361, 379-390`、`src/px3/include/px3/px3_servo_node.h` |
++| F13 | 8 | カメラのバッファを 1 枚に（`capture_buffer_size`）。解像度は `ACTIVE_W` / `ACTIVE_H` で切り替えられる（既定は 1920×1080 のまま） | `src/px2/include/vision/capture_settings.hpp:8-45`、`inference.cpp:41, 206, 290`、launch、`launch_px.sh` |
++| F14 | 11 | 毎フレームの INFO ログを DEBUG に。1 秒に 1 行の INFO に誤差・指令角・フレームの古さを追加。検出ごとの `std::cout` を削除。起動用タイマーを 1 回で止める | `inference.cpp:306, 312, 321, 350, 357, 455-458, 514-520`、`src/px2/src/yolo_inference.cpp:258-259` |
++| F15 | 11 | 前処理が元のフレームを書き換えないようにした（保存画像の赤と青が入れ替わらない）。引数の順（幅、高さ）も直した | `yolo_inference.cpp:273-277`、`src/px2/include/yolo_inference.h`、`inference.cpp:445`、`src/px2/src/tools/bench_yolo.cpp:136` |
++| F16 | 18、20 | 見失いを秒で判定。GPU を要求したのに CPU で動いているときは、起動時に ERROR、追跡中は 10 秒ごとに WARN | `inference.cpp:61-63, 230-238, 503-510, 521-525`、`yolo_inference.cpp:54-62` |
++| F26 | 8 | 別スレッドでカメラを読み続け、最新の 1 枚だけを使う（`capture_thread`、既定 true）。CSV に `frame_age_ms`（撮ってから処理を始めるまで）を追加 | 新しいファイル `src/px2/include/vision/latest_frame_grabber.hpp`、`inference.cpp:43, 266-268, 286-293, 360-436, 516`、`inference.h:48-52, 81-84, 167-169`、launch、`launch_px.sh:51, 94` |
++
++### 2.4 PIR
++
++| ID | 課題 | 直した内容 | 修正箇所 |
++|---|---|---|---|
++| F25 | 14 | PIR の起動を「今 HIGH かどうか」で判定する形に変更。px3 は今の値を 200 ms ごとに送る。WATCH に戻ったときに値を false に書き換えない。watch_node は値を覚え、条件がそろったら起動する（px3 の準備待ち、再起動待ち `rewake_delay_ms`）。px2 は px3 の準備前に来た起動要求を消さない | `px3_servo_node.cpp:296-300, 346-353, 392-433`、`px3_servo_node.h:32-34, 139-141`、`src/px3/src/watch_node.cpp:20, 37-40, 54-121`、`src/px3/include/px3/watch_node.h:49-51, 65, 70-74`、`inference.cpp:411-416`、launch |
++
++### 2.5 ファイルの場所、リポジトリ、CI、文書
++
++| ID | 課題 | 直した内容 | 修正箇所 |
++|---|---|---|---|
++| F17 | 5、CI | 校正と取り込みの縦横比が違うときに起動時に WARN。CI のパラメータ照合が名前付き定数の既定値（`PIR_PIN`）を読めるようにした | `src/px2/include/vision/camera_calibration.hpp:14-16, 49-50`、`inference.cpp:214-219`、`ci_checks/check_px_parameter_contract.py:37-54, 249-292`、`ci_checks/tests/test_check_px_parameter_contract.py`（リポジトリの一番上から） |
++| F18 | R1 | `.clang-format` と `.gitignore` を追加。**どちらも推定・新規に作ったもの。以前作ったファイルが手元にあれば、それで置き換える（そちらが正）** | リポジトリの一番上 |
++| F19 | R2 | `.geek` を `.gitkeep` に改名 | `src/px2/data/` |
++| F23 | C4 | トラブル対応の表に 3 行追加（サーボが中央に動かない、ループが約 15 Hz、`model not found`） | `docs/03_commands.md` 13 章 |
++| F24 | C5 | `kPkgPath` を廃止。パラメータ `model_path`、`calib_path`、`save_dir` を追加。空なら `share/px2/weights/` と `/tmp/px2_frames`。`launch_px.sh` は `save_dir` に `frames/` を渡す。モデルが無いときは `model not found: <パス>` で止まる | `inference.cpp:19-22, 45-59, 64-67, 211, 225-227, 348`、`inference.h:73-78`、`src/px3_launch/launch/px3_system_launch.py`、`launch_px.sh:53-57, 76-77, 95` |
++
++文書の更新：`README.md`、`README_jp.md`、`docs/03_commands.md`、`docs/WIRING.md`（変数の表、保存先、`/pir/state` の説明）。
++
++### 2.6 計測 CSV の列（27 列）
++
++| 列 | 意味 | 追加 |
++|---|---|---|
++| `time_s` 〜 `box_area`（14 列） | 時刻、フレーム番号、推論デバイス、区間ごとの時間、検出数など | 以前から |
++| `detected` | このフレームで人を検出したか（1 / 0） | F09 |
++| `yaw_err_deg`、`pitch_err_deg` | 画像中心からのずれ（度）。検出なしのときは 0 | F09 |
++| `cmd_x_deg`、`cmd_y_deg` | px2 が持っている指令角（px3 が四捨五入してサーボに送る） | F09 |
++| `published` | このフレームで `/inference` を送ったか（1 / 0） | F09 |
++| `session_id` | DETECT に入るたびに 1 増える番号 | F21 |
++| `to_watch` | このフレームで見失いと判定し、WATCH に戻ったか（1 / 0） | F21 |
++| `frame_age_ms` | フレームを撮ってから処理を始めるまでの時間。`LATEST_FRAME=false` のときは、ほぼ 0 と出る（撮った時刻が分からないため） | F26 |
++| `servo_at_capture_x_deg`、`servo_at_capture_y_deg` | フレームを撮った時刻の指令角（整数） | F27 |
++| `target_abs_x_deg`、`target_abs_y_deg` | 人の絶対角 = 撮影時の指令角 + 誤差。検出なしのときは空 | F27 |
++
++---
++
++## 3. 確かめたこと
++
++### 3.1 実機（Jetson、実物のカメラ・Arduino・サーボ）
++
++| 対象 | 日付 | 結果 |
++|---|---|---|
++| F01〜F17 | 2026-11-19 | 動作確認済み。問題なし |
++| F18〜F27 | 2026-11-19 | 動作確認済み。問題なし |
++
++確認に使った項目は 4.2 節です。この文書には、項目ごとの結果は記録していません。次の 4 つは、数字や結果が分かったら書き足してください。
++
++- カメラがバッファ 1 枚を受け付けたか（起動ログの `Camera buffer size: 1`）
++- 追跡中のループ Hz と `frame_age_ms`
++- ストップウォッチで測った遅延（ms）
++- PIR の前に人が立ったまま起動したとき、DETECT に入ったか（Telemetrix が最初の値を報告するか）
++
++### 3.2 PC 上の代わりの環境（実機の前に確認）
++
++環境：x86_64、Ubuntu 24.04、ROS 2 Jazzy、OpenCV 4.6、ONNX Runtime（CPU）。カメラの代わりに合成した動画、Arduino の代わりに仮想シリアル（pty）を使いました。
++
++| 確かめたこと | 方法 | 結果 |
++|---|---|---|
++| ビルド | `colcon build`（4 パッケージ） | 成功。新しい警告なし |
++| TensorRT 用の分岐の文法 | `-DPX_WITH_TENSORRT -fsyntax-only`（`yolo_inference.cpp`） | エラーなし |
++| CI | `ruff check`、`ruff format --check`、パラメータ照合、単体テスト 13 件、clang-format 14 | すべて合格 |
++| 制御の計算（F01、F02、F05、F06） | 単体テスト（D 項、範囲の端、再開、`observe`） | 合格 |
++| 指令角の履歴（F27） | 単体テスト（履歴より前、間、後ろの時刻。古いものの削除） | 合格 |
++| 読み取りスレッド（F26） | 単体テスト（動画 1000 フレーム、ThreadSanitizer 付き） | 合格。データ競合の報告なし |
++| px3 の指令（F04、F08、F12） | 仮想シリアルに送られたバイト列を読む | 中心 95.6 → 96、84.6 → 85。`pir_pin=3` が届く |
++| PIR（F25）。修正前 | 「HIGH を 1 回だけ報告し、再送には答えない Arduino」で起動 | 最初に WATCH に戻ったあと、75 秒間 1 度も起動しなかった（取りこぼしを再現） |
++| PIR（F25）。修正後 | 同じ Arduino で起動 | WATCH に戻るたびに約 1.1 秒後に再起動。PIR を LOW にすると止まった。ノードの準備前に HIGH を報告しても、準備ができた時点で起動した |
++| システム全体 | launch で px2 + px3 + watch_node を起動 | `x_center_deg:=95.0` が px3 に届く。再検出時に 150° → 147° と続く（中央へ飛ばない）。モデルと校正を `share/px2/weights/` から読む。PNG は検出 1 フレームに 1 枚で、色も元のまま。CSV は 27 列。`frame_age_ms` は 5〜24 ms |
++| `LATEST_FRAME=false` | 同じ構成で `capture_thread:=false` | 動作した |
++| 集計（F10、F22） | 新しい CSV と、列の少ない古い CSV | どちらも表が出る。無い列は「-」 |
++
++システム全体のテストでは、テスト用に 2 か所だけ変えたビルドを使いました。`cv::CAP_V4L2` を `cv::CAP_ANY` に変え（動画ファイルを開くため）、読み取りスレッドに 33 ms の待ちを入れています（動画を 30 fps で流すため）。お渡ししたコードには、どちらも入っていません。
++
++C++ の整形には、元のコード 15 ファイルが差分 0 になる設定を推定して使いました（F18 の `.clang-format`）。
++
++### 3.3 レビューの訂正
++
++**課題 13（サーボ指令の遅れ）**：最初のレビューで「最大約 300 ms 遅れる」と書きましたが、測ると影響はもっと小さいものでした。
++
++| 送る間隔 | 元のコード（キュー 10、30 ms 待ち） | 修正後（キュー 1、待ちなし） |
++|---|---|---|
++| 33 ms 均等（30 Hz） | 平均 0.4 ms、最大 3.9 ms | 平均 0.7 ms、最大 7.8 ms |
++| 15、15、69 ms の繰り返し（平均は同じ 30 Hz） | 平均 12.9 ms、最大 28.4 ms | 平均 1.3 ms、最大 5.0 ms |
++
++数字は、px2 が送ってからシリアルに書かれるまでの時間です（PC 上、仮想シリアルでの計測）。30 fps のカメラでは、指令が溜まり続けることはありません。
++
++**集計の検出率**：F10 の時点の集計は、検出率を高めに出していました。同じ CSV（656 行）で、F10 の集計は 99%、F22 の集計は 89% です。
++
++---
++
++## 4. 実機での確認手順
++
++### 4.1 ビルドと起動
++
++```bash
++# コンテナ内
++rm -rf build install log && ./build_px.sh && source install/setup.bash
++./kill_camera_users.sh
++PROVIDER=trt ./launch_px.sh
++```
++
++### 4.2 確認に使った項目
++
++起動ログ：
++
++- `px2: model=/ros2_ws/work/install/px2/share/px2/weights/yolo11.onnx` と `px2: calib=.../calib_result_ir.yaml` が出る（F24）
++- `px2: control kp=(0.30, 0.30) kd=(0.30, 0.30) per-frame, max_step=3.0 deg, dead_zone=(1.0, 1.0) deg, lost_timeout=1.00 s` が出る（F01、F03、F07、F16）
++- `px3: params serial_port=/dev/ttyACM0 baudrate=115200 x_center_deg=90.0 y_center_deg=90.0 pir_pin=2` が出る（F08）
++- `Camera buffer size: 1` が出る（F13）。`was not accepted by the driver` が出ても、読み取りスレッド（F26）があるので古いフレームは使われない
++- `[px2] pipeline start. capture_thread=true` が出る（F26）
++- `watch_node ready. pir_debounce_ms=200 rewake_delay_ms=1000` が出る（F25）
++- `Calibration aspect ratio ... differs` の WARN が出ない（F17）
++- `px2: inference provider = trt (requested trt)` が出て、`NOT in use` の ERROR が出ない（F16）
++
++パラメータが px3 に届くこと（F08）：
++
++- `launch_px.sh` の `x_center_deg:=90.0` を一時的に `95.0` に変えて起動すると、`px3: params ... x_center_deg=95.0` と出て、サーボが 95° に動く
++
++PIR（F25）：
++
++- 人が入ると `watch_node: PIR HIGH` → `watch_node: PIR is HIGH → /px_wakeup = true` → `px2: enter DETECT+TRACK mode` の順に出る
++- 人がカメラの外にいて PIR だけが反応している間、約 2 秒おきに DETECT と WATCH を往復する。気になる場合は `REWAKE_DELAY_MS=3000` などに上げる
++- PIR が LOW に戻ると `watch_node: PIR LOW` が出て、再起動が止まる
++- PIR の前に人が立ったまま起動して、DETECT に入る
++
++追跡：
++
++- 人を追っている間、INFO のログが 1 秒に 1 行（`px2[timing] ... age=...ms | det=1 err=(...)deg cmd=(...)deg`）になっている（F14）
++- `age` が、おおむね 33 ms 以下（F26）
++- 人が画面から出て約 1 秒で `px2: enter WATCH mode` が出る（F16）
++- 見失った向きのまま止まり、再び検出したときに中央へ飛ばない（F05）
++- 止まっている人に対して、サーボが細かく震えない。震える場合は `DEAD_ZONE=1.5` や `KD=0` を試す（F01、F03）
++- 可動範囲の端まで追ったあと、人が戻るとすぐに追い返す（F06）
++- WATCH から DETECT に入った直後に、古い映像を掴んで、すぐ WATCH に戻ってしまわない（F26）
++
++計測：
++
++- `TIMING_CSV=/ros2_ws/work/bench/results/check/live_trt.csv PROVIDER=trt ./launch_px.sh` で CSV ができ、27 列ある（F09、F21、F26、F27）
++- `python3 bench/summarize.py bench/results/check` で「追従」の表が出る（F10、F22）
++- 「ループ Hz」が約 30。約 15 なら `CAP_BUFFER=2` と比べる
++- 止まっている人を追っているとき、CSV の `target_abs_x_deg` がほぼ一定になる。大きく揺れるなら `SERVO_LAG_MS=50` などを試す（F27）
++
++保存：
++
++- `SAVE_FRAMES=true` で `SeamlessTrack/frames/` に `detect_<番号>.png` だけができる。画像の色が実物と同じ（F11、F15、F24）
++
++### 4.3 DEBUG ログの出し方
++
++毎フレームのログ（誤差、bbox、publish した角度）を見たいときは、`px3_system_launch.py` の px2 の `Node(...)` に次の 1 行を足して起動します。確認が終わったら消してください。
++
++```text
++ros_arguments=["--log-level", "px2:=debug"],
++```
++
++---
++
++## 5. 計測と調整のしかた（段階 7 の残り）
++
++### 5.1 順番
++
++1. **遅延を測る。** カメラの前でストップウォッチを映し、画面に出た時刻との差を見る。CSV の `frame_age_ms` + `pre_ms` + `infer_ms` + `post_ms` は、そのうちソフトの分
++2. **`KD` を 0、0.3、0.6 で比べる。** モデルでは差は小さい（1〜2 cm）
++3. **遅延が 100 ms 以下なら `KP=0.4` を試す。** 165 ms を超えていたら `KP=0.2` を試す
++
++### 5.2 遅延と Kp の目安
++
++モデルでの見積もりで、実測ではありません。Kd はどれも 0.3 です。
++
++| 遅延 | Kp 0.2 | Kp 0.3（既定） | Kp 0.4 |
++|---|---|---|---|
++| 約 100 ms | 安定 | 安定 | 安定 |
++| 約 130 ms | 安定 | 安定 | 揺れ始める |
++| 約 165 ms | 安定 | 揺れ始める | 発振 |
++| 約 200 ms | 安定 | 発振 | 発振 |
++
++### 5.3 集計の読み方
++
++- 誤差は、検出できたフレームだけで計算している。見失っている間のずれは入らないので、必ず検出率と一緒に見る
++- 「取りこぼし」は、1 フレームだけ検出が途切れた場合も 1 回と数える。「WATCH に戻った回数」とは別
++- 「ループ Hz」は、DETECT に入った最初のフレームを除いて計算している
++
++### 5.4 修正前の数字を測る場合
++
++評価シナリオ S1〜S3 の基準（段階 6 完了時）は、修正前のコード（2026-11-18）で測ります。そのとき `SAVE_FRAMES=false` を付けてください。付けないと、PNG の保存でループが遅くなった状態を測ることになります。修正前のコードの CSV には誤差の列が無いので、数字として取れるのはループ Hz と推論時間です。
++
++修正後のコードで、以前に近い制御を再現して測ることもできます（角度の切り捨てと、再検出時の中央戻りは再現されません）。
++
++```bash
++KD=6.0 DEAD_ZONE=2.0 CAP_BUFFER=0 LATEST_FRAME=false TIMING_CSV=... ./launch_px.sh
++```
++
++---
++
++## 6. まだ入れていない修正
++
++| 課題 | 内容 | 理由 |
++|---|---|---|
++| 5 | IR カメラの再キャリブレーション | 実機の作業（2〜3 時間）。縦横比の不一致の警告だけ入れた（F17） |
++| 8 | 取り込みを 1280×720 にする（既定の変更） | 再キャリブレーションのあとに行う。`ACTIVE_W=1280 ACTIVE_H=720` で試すことはできる |
++| 3、7 | 予測（絶対角方式 + カルマンフィルタ）と ID 追跡 | 段階 11（2〜3 日）。F27 の記録はその準備 |
++| 2 | 角度を 0.1° 刻みにする | 段階 12（マイコンのファーム） |
++| — | person 専用モデルへの切り替え | モデルの用意が要る（半日） |
++| — | シリアル受信のずれ、ピン設定の送信結果の確認（`px3_servo_node.cpp`） | 依頼の範囲外（30 分） |
++| — | 校正と取り込みの解像度を CI で調べる | 解像度は起動時の変数で変わるので、起動時の警告（F17）にした |
++| — | S1〜S3 の計測とゲイン調整 | 実機の作業（半日） |
++
++---
++
++## 7. 差分の当て方と戻し方
++
++`docs/04_fix_patch_2026-11-19.patch` は、2026-11-18 のコードに対する差分です（30 ファイル）。コードのほか、`docs/` に足した文書（この修正記録、ロードマップ、レビュー結果）も入っています。パッチのファイル自身は入っていません。
++
++```bash
++# 2026-11-18 のリポジトリの一番上で（パッチは先に別の場所へコピーしておく）
++patch -p1 < 04_fix_patch_2026-11-19.patch
++git mv SeamlessTrack/src/px2/data/.geek SeamlessTrack/src/px2/data/.gitkeep
++
++# 修正を外す（このリポジトリの一番上で）
++patch -R -p1 < docs/04_fix_patch_2026-11-19.patch
++```
++
++空のファイルの改名（`.geek` → `.gitkeep`）は patch に入らないので、手で実行します。このリポジトリには反映済みです。
++
++このリポジトリは、パッチを当てたあとの状態です。パッチは、何を変えたかを確かめるためと、元に戻すために置いています。
++
++---
++
++## 8. 変更したファイルの一覧
++
++2026-11-18 のコードと比べた一覧です。パスはリポジトリの一番上からです。
++
++### 8.1 新しいファイル（8 個）
++
++| ファイル | 中身 | 修正 |
++|---|---|---|
++| `.clang-format` | C++ の整形の設定（推定したもの。以前作ったファイルがあれば置き換える） | F18 |
++| `.gitignore` | git に入れないファイルの一覧（新規。以前作ったファイルがあれば置き換える） | F18 |
++| `SeamlessTrack/src/px2/include/vision/latest_frame_grabber.hpp` | 別スレッドでカメラを読み続け、最新の 1 枚を渡すクラス | F26 |
++| `SeamlessTrack/src/px2/include/control/command_history.hpp` | サーボへの指令角の履歴 | F27 |
++| `docs/04_fix_log_2026-11-19.md` | この修正記録 | — |
++| `docs/04_fix_patch_2026-11-19.patch` | 2026-11-18 のコードに対する差分 | — |
++| `docs/05_roadmap_2026-11-19.md` | 改良ロードマップ | — |
++| `docs/06_review_of_fixes_F01-F17.md` | 修正 F01〜F17 のレビュー結果と、その対応 | — |
++
++### 8.2 改名（1 個）
++
++| 以前 | 今 | 修正 |
++|---|---|---|
++| `SeamlessTrack/src/px2/data/.geek` | `SeamlessTrack/src/px2/data/.gitkeep` | F19 |
++
++### 8.3 変更したファイル（23 個）
++
++| ファイル | 主な変更 | 修正 |
++|---|---|---|
++| `SeamlessTrack/src/px2/src/inference.cpp` | パラメータ、制御ループ、計測 CSV、カメラの読み方、見失いの判定、起動要求の扱い、px3 へのパラメータ渡し | F02、F03、F05、F07〜F09、F11、F13、F14、F16、F17、F21、F24〜F27 |
++| `SeamlessTrack/src/px2/include/inference.h` | 上に合わせたメンバの追加と削除（`kPkgPath` の廃止など） | 同上 |
++| `SeamlessTrack/src/px2/include/control/axis_pd_controller.hpp` | D 項を dt で割らない形に。`observe()`、`resetAtServoDeg()`、範囲の制限、コメント | F01、F02、F05、F06、F20 |
++| `SeamlessTrack/src/px2/include/vision/capture_settings.hpp` | カメラのバッファ枚数の指定 | F13 |
++| `SeamlessTrack/src/px2/include/vision/camera_calibration.hpp` | 縦横比の不一致の検出 | F17 |
++| `SeamlessTrack/src/px2/src/yolo_inference.cpp` | 前処理が元のフレームを書き換えない。検出ごとの標準出力の削除。CPU に落ちたときのメッセージ | F14〜F16 |
++| `SeamlessTrack/src/px2/include/yolo_inference.h` | `preprocess()` の引数を `const` に | F15 |
++| `SeamlessTrack/src/px2/src/tools/bench_yolo.cpp` | `preprocess()` の変更に合わせた | F15 |
++| `SeamlessTrack/src/px3/src/px3_servo_node.cpp` | 角度の四捨五入、受信キュー 1 件、待ちと `/px3_ack` の削除、PIR の今の値の定期送信 | F04、F08、F12、F25 |
++| `SeamlessTrack/src/px3/include/px3/px3_servo_node.h` | 上に合わせた変更 | F12、F25 |
++| `SeamlessTrack/src/px3/src/watch_node.cpp` | PIR の今の値で起動する形に。再起動待ち | F25 |
++| `SeamlessTrack/src/px3/include/px3/watch_node.h` | 上に合わせた変更 | F25 |
++| `SeamlessTrack/src/px3_launch/launch/px3_system_launch.py` | 引数の追加（死帯、見失いの秒数、バッファ、読み取りスレッド、パス、サーボの遅れ、再起動待ち、`pir_pin`）。既定値の変更 | F03、F07、F08、F13、F16、F24〜F27 |
++| `SeamlessTrack/launch_px.sh` | 調整用の変数の追加と説明。`SAVE_FRAMES` の既定を `false` に | F03、F11、F13、F16、F20、F24〜F27 |
++| `SeamlessTrack/bench/summarize.py` | 「追従」の表。検出率、WATCH に戻った回数など | F10、F22 |
++| `ci_checks/check_px_parameter_contract.py` | 名前付き定数の既定値を読めるように | F17 |
++| `ci_checks/tests/test_check_px_parameter_contract.py` | 上のテストを 2 件追加 | F17 |
++| `ci_checks/run_local.sh` | `max_step_deg` の除外を削除。`pir_pin` を px3 への受け渡しに追加 | F07、F08 |
++| `.github/workflows/px-parameter-contract.yml` | 同上 | F07、F08 |
++| `README.md`、`README_jp.md` | 変数の表、保存先、CI の説明、文書の一覧 | F20、F24 ほか |
++| `docs/03_commands.md` | 変数の表、トラブル対応の表、`/pir/state` の説明 | F20、F23、F25 |
++| `docs/WIRING.md` | `/pir/state` の説明 | F25 |
++
++---
++
++## 9. レビュー結果への対応
++
++修正 F01〜F17 を別のエージェントがレビューした結果（`docs/06_review_of_fixes_F01-F17.md`）への対応です。指摘 7 件と提案 1 件は、すべて妥当と判断しました。
++
++| # | 指摘 | 対応 | 状態 |
++|---|---|---|---|
++| R1 | `.clang-format` と `.gitignore` がリポジトリにない | F18。2 ファイルを追加 | **仮対応。以前作った 2 ファイルが正なので、手元で置き換える** |
++| R2 | `data/.geek` は `.gitkeep` の打ち間違い | F19。改名 | 完了 |
++| C1 | Kp を上げる前に、遅延を測る | F20。コメント、変数の説明、調整の順番（5 章）に反映 | 完了。遅延の計測は残り |
++| C2 | バッファ 1 枚で fps が半分になることがある | 変数の説明とトラブル対応の表に追記（F20、F23） | **未確認。実機のループ Hz を見て判断する** |
++| C3 | 集計の数字の読み方 | F21、F22。CSV の列と集計を追加 | 完了 |
++| C4 | 起動順を変えたことの副作用 | F23。トラブル対応の表に追記 | 完了 |
++| C5 | パスがコンテナ内の絶対パスで固定 | F24。パラメータ化 | 完了 |
++| 段階 11 への提案 | 絶対角方式を土台にする | F27。指令角の履歴を CSV に記録 | 準備は完了。本体は段階 11 |
++
++手元で残っている作業は 2 つです。
++
++- R1：以前作った `.clang-format` と `.gitignore` があれば、置き換える
++- C2：段階 7 の計測でループ Hz を見る。約 15 Hz なら `CAP_BUFFER=2` と比べる
+diff -ruN a/docs/05_roadmap_2026-11-19.md b/docs/05_roadmap_2026-11-19.md
+--- a/docs/05_roadmap_2026-11-19.md	1970-01-01 00:00:00.000000000 +0000
++++ b/docs/05_roadmap_2026-11-19.md	2026-11-19 01:11:01.256030497 +0000
+@@ -0,0 +1,327 @@
++# PX 改良ロードマップ（2026-11-19 改訂）
++
++2026-11-19
++
++## 1. 概要
++
++次にやるべきことは、推論の高速化ではなく制御の修正と、その効果の計測です。課題 28 個のうち 23 個は修正が済み、2026-11-19 に実機で動作を確認しました。
++
++PX は、夜間に人を見つけてカメラ（とレーザー）を向け続ける 2 軸のトラッキング装置です。個人プロジェクトで、成果は GitHub で公開しています（リポジトリ名 PX4）。
++
++この文書は 6 つの節に分かれています。
++
++| 節 | 中身 |
++| --- | --- |
++| 1. 概要 | 方針と、この文書の読み方 |
++| 2. 現状 | 今の構成、完了した段階、推論速度、コードに入れた修正 |
++| 3. 課題 | 追いきれない症状と、課題 28 個の内訳 |
++| 4. 修正箇所：対応済み | 修正が済んだ課題 23 個 |
++| 5. 修正箇所：未対応 | 残っている課題 5 個と、番号のない修正 2 件 |
++| 6. note | 今後の段階、計測のしかた、見積もり、訂正、対象外、用語、改訂履歴 |
++
++次の作業は、遅延の計測、評価シナリオ S1〜S3 の計測、ゲインの調整です（6 節の「段階 7」）。
++
++元にしたのは、元のロードマップ、2026-11-18 時点の PX4 のコード、2026-11-19 のコードレビュー、修正のレビュー結果（`docs/06_review_of_fixes_F01-F17.md`）、修正記録（`docs/04_fix_log_2026-11-19.md`）です。
++
++## 2. 現状
++
++段階 1〜6 と 9a は完了しています。段階 7 と 10 は、コードの修正が済み、計測と一部の作業が残っています。修正はすべて、2026-11-19 に実機で動作を確認しました。
++
++| 層 | 中身 |
++| --- | --- |
++| 計算機 | Jetson Orin Nano 8GB（JetPack 6.2.1）。ROS 2 Humble を Docker で動かす |
++| 起動 | PIR センサー（SB612B → Arduino D2）が HIGH の間、待機（WATCH）から検出・追跡（DETECT_TRACK）に移る。立ち上がりの瞬間ではなく、今の値で判定する |
++| カメラ | ELP IR USB カメラ。1920×1080、30 fps。別スレッドで読み続け、最新の 1 枚だけを使う |
++| 検出 | YOLO11n（COCO の person クラスだけ使う）。TensorRT FP16 / FP32 または ONNX Runtime CPU |
++| 制御 | 画像中心とのずれ → 角度の誤差 → 増分 PD 制御。既定は Kp 0.3、Kd 0.3（1 フレームあたり）、死帯 1°、1 回の最大 3° |
++| 駆動 | Arduino（Telemetrix）→ ホビーサーボ 2 軸（パン・チルト）。四捨五入した整数の角度で指令 |
++
++### 完了した段階
++
++| # | 内容 | 結果 |
++| --- | --- | --- |
++| 1 | Jetson のセットアップ | JetPack 6.2.1（L4T R36.4） |
++| 2 | ソフトウェアの再現 | Docker イメージ px-jetson:latest（ROS 2 Humble、TensorRT 10.3） |
++| 3 | ハードウェアの再現 | PC を Jetson に置き換え。Arduino・サーボ・PIR の配線はそのまま |
++| 4 | システム全体の再現 | ソフトとハードを合わせて動作確認 |
++| 5 | リモート操作 | SSH、Tailscale、VNC（起動時に自動で立ち上がる） |
++| 6 | TensorRT 対応 | 起動時に PROVIDER=cpu / trt を選べる。リポジトリを PX4 として整理 |
++| 9a | PIR の取りこぼしをソフトで直す | 「今 HIGH かどうか」で起動する形に変更（F25） |
++
++### 推論速度（オフライン計測、2026-11-18）
++
++| 方式 | 1 フレームの時間 |
++| --- | --- |
++| CPU（ONNX Runtime 1.14） | 約 88 ms |
++| TensorRT FP32 | GPU 計算 8.6 ms |
++| TensorRT FP16 | GPU 計算 5.4 ms。前処理・後処理を含めて 10.3 ms（約 97 FPS） |
++
++FP16 の 10.3 ms の内訳は、前処理 3.7 ms、推論 6.6 ms、後処理 0.02 ms です。カメラは 30 fps（約 33 ms 間隔）なので、推論ではなくカメラが速度の上限を決めています。
++
++### コードに入れた修正（2026-11-19）
++
++修正 27 件（F01〜F27）を入れました。変更したファイルは 23 個、新しいファイルは 8 個です。修正ごとの箇所、動きが変わった点、確認に使った項目は `docs/04_fix_log_2026-11-19.md` にあります。差分は `docs/04_fix_patch_2026-11-19.patch` の 1 つにまとめています。
++
++先に PC 上の代わりの環境（x86、ROS 2 Jazzy、動画ファイルをカメラの代わり、仮想シリアルを Arduino の代わり）で、ビルド、CI のチェック、3 ノードを通した動作を確かめました。そのあと 2026-11-19 に実機（Jetson、実物のカメラとサーボ）で動作を確認し、問題はありませんでした。追従誤差がどれだけ減ったか（S1〜S3）は、まだ測っていません。
++
++## 3. 課題
++
++普通に歩く人を追いきれず、中心から 20〜30 cm ほどずれます（体感）。原因と関連する問題は 28 個あり、23 個が対応済み、5 個が未対応です。
++
++課題は 3 回に分けて見つかりました。番号はその順です。
++
++| 番号 | 見つかった場所 | 個数 | 対応済み | 未対応 |
++| --- | --- | --- | --- | --- |
++| 1〜11 | 元のロードマップ（2026-11-19 初版） | 11 | 7 | 4（課題 3、5、7、8） |
++| 12〜20 | 2026-11-19 のコードレビュー | 9 | 9 | 0 |
++| 21〜28 | 修正 F01〜F17 のレビュー（別のエージェント）と、その確認 | 8 | 7 | 1（課題 26） |
++| 合計 |  | 28 | 23 | 5 |
++
++主な原因は 4 つに分けられます。
++
++- **制御**：D 項が強すぎた、死帯が広い、角度を切り捨てていた、再検出で中央に戻っていた（課題 1、2、4、6、16、17、19、25）
++- **遅延と古いフレーム**：PNG の二重保存、古いフレームの使用、遅延の補償がない（課題 3、8、12、13、26、28）
++- **起動と追跡の取りこぼし**：PIR の取りこぼし、ID 追跡がない（課題 7、14）
++- **設定・計測・リポジトリ**：パラメータが届かない、計測の列が足りない、パスの固定など（課題 5、9、10、11、15、18、20〜24、27）
++
++4 節と 5 節の表の見方は次のとおりです。
++
++- 「対応済み」は、コードに入れて、2026-11-19 に実機で動作を確認したという意味です。追従誤差がどれだけ減ったか（S1〜S3）は、まだ測っていません
++- F の番号は修正の ID です。修正箇所（ファイルと行番号）は `docs/04_fix_log_2026-11-19.md` にあります
++- 「段階」は、6 節の段階の番号です。R と C は、修正のレビュー結果の番号です
++
++## 4. 修正箇所：対応済み
++
++課題 23 個は修正が済み、2026-11-19 に実機で動作を確認しました。対応する修正は F01〜F27 の 27 件です。
++
++| # | 原因 | 何が起きていたか | 影響・補足 | 対応（修正 ID） | 段階 |
++| --- | --- | --- | --- | --- | --- |
++| 1 | D 項が強すぎる（Kd 0.2、誤差の変化を dt で割る） | 検出枠の揺れを増幅して発振する。ループが速いほど強くなる | 元の記述より強い問題だった。30 Hz では Kd ÷ dt = 6.0 で、P 項（0.3）の約 20 倍。必要な量の約 6 倍を指令し、毎回 3° の上限に当たっていた | F01。dt で割らない形にし、既定を 0.3 に | 7 |
++| 2 | 死帯 2° ＋ 整数の角度指令（切り捨て） | 最大約 3° の誤差が残る。5 m 先で約 26 cm | 0.1° 刻みにする作業は段階 12 に残る | F03、F04。死帯 1.0°、四捨五入 | 7 |
++| 4 | 1 回の最大量の既定値が食い違う | launch は 3°、コードの既定値は 1.2° | — | F07。3.0° に統一し、CI の除外を外した | 7 |
++| 6 | 再検出のたびに位置を 0 に戻す | 見失って再検出すると、サーボが中央へ飛ぶ | — | F05。今のサーボ角から再開 | 7 |
++| 9 | 推論が遅い（CPU 約 88 ms） | 制御の周期が推論に縛られる | TensorRT が失敗すると黙って CPU に落ちる点は課題 20 | TensorRT 対応（段階 6） | 6 |
++| 10 | 区間ごとの時間が分からない | どこが遅いか比べられない | — | F09、F10、F21、F22。CSV は 27 列。集計に追従の表 | 7 |
++| 11 | 毎フレームのログが多い。前処理が元のフレームを上書きする | 余分な遅延とばらつき。保存画像の赤と青が入れ替わる | 検出ごとの標準出力も対象 | F14、F15 | 10 |
++| 12 | 検出時に 1080p の PNG を 2 枚保存していた（既定で保存する設定） | ループが 30 Hz 出ない。PC 上の計測では PNG 1 枚に 22〜29 ms かかった | 影響：大。bench のスクリプトは保存なしで測るので、普段の起動と計測の条件が違っていた | F11。1 フレーム 1 枚、既定は保存なし | 7 |
++| 13 | サーボ指令の受信キューが 10 件で、1 件ごとに 30 ms 待つ | 送る間隔がばらつくと、指令が最大で約 30 ms 遅れる | 影響：小。当初の見立て「最大約 300 ms」は誤り（6 節の訂正を参照） | F12。キュー 1 件、待ちなし | 7 |
++| 14 | PIR の起動を取りこぼす経路がソフトにある | 人が来ても反応しないことがある。PIR 本体の問題と区別がつかない | 影響：大。経路は 3 つあった（6 節を参照） | F25。「今 HIGH かどうか」で起動する形に変更 | 9a |
++| 15 | px3 に launch のパラメータが届かない | `x_center_deg` などを変えても px3 は既定値のまま | 影響：中。値がたまたま同じなので表に出ていなかった | F08。px2 経由で px3 に渡す | 7 |
++| 16 | 可動範囲の端で位置が溜まり続ける | 端まで追ったあと、戻るのが遅れる | 影響：中 | F06 | 7 |
++| 17 | 死帯の中では前回の誤差が更新されない | 死帯を出た瞬間の D 項が跳ねる | 影響：中 | F02 | 7 |
++| 18 | 見失いの判定がフレーム数 | ループの速さで WATCH に戻るまでの時間が変わる | 影響：小 | F16。秒で判定。パラメータ名は `lost_timeout_s` | 10 |
++| 19 | 死帯がコードに固定されていた | 調整のたびにビルドが必要 | 影響：小 | F03。`DEAD_ZONE` で変えられる | 7 |
++| 20 | TensorRT が失敗すると黙って CPU に落ちる | 1 フレーム約 88 ms に戻っても、ログを見ないと気づかない | 影響：小 | F16。起動時に ERROR、追跡中は 10 秒ごとに WARN | 10 |
++| 21 | `.clang-format` と `.gitignore` がリポジトリにない（R1） | GitHub の `cpp-ci` が全ファイルで失敗する。重いファイルを誤ってコミットするおそれがある | 影響：中。入れたのは推定・新規のファイル。以前作ったものがあれば置き換える | F18 | — |
++| 22 | `data/.geek` は `.gitkeep` の打ち間違い（R2） | 今は困らない | 影響：小 | F19 | — |
++| 23 | 集計の検出率が高めに出る。WATCH に戻った回数が分からない（C3） | 検出できなかった行が集計から落ちていた。同じ CSV で 99% と出ていたものが、正しくは 89% | 影響：中 | F21、F22 | 7 |
++| 24 | モデル・校正ファイル・保存先がコンテナ内の絶対パスで固定（C5） | コンテナの外では動かない。検出画像がソースの中に溜まる | 影響：小 | F24。パラメータ化。既定は `share/px2/weights/` と `frames/` | 10 |
++| 25 | Kp と Kd の実質的な意味が、コードにも文書にも書かれていない（C1） | Kp は実質的に積分、Kd は実質的に比例。遅延を測らずに Kp を上げると発振する | 影響：大。遅延の計測は段階 7 に残る | F20。コメントと変数の説明、調整の順番を追記 | 7 |
++| 27 | 起動順を px2 → px3 に変えた副作用（C4） | px2 の初期化で失敗すると px3 が作られず、サーボが中央に動かない | 影響：小 | F23。トラブル対応の表に追記 | — |
++| 28 | フレームを撮った時刻のサーボ角が分からない | 人の絶対角を出せないので、予測（段階 11）を組めない | 影響：中。制御にはまだ使っていない | F27。指令角の履歴を残し、CSV に記録 | 11 |
++
++この表に出てこない修正が 3 件あります。F13（カメラのバッファ 1 枚の要求）と F26（別スレッドで最新の 1 枚を渡す）は課題 8 の一部、F17（縦横比が違うときの警告、CI の照合の拡張）は課題 5 の一部です。どちらの課題も作業が残っているので、5 節に載せています。
++
++## 5. 修正箇所：未対応
++
++残っているのは、課題 5 個と、課題の番号を付けていない修正 2 件です。次に着手するのは課題 26 の確認（段階 7 の計測と一緒に行う）です。
++
++| # | 原因 | 何が起きるか | 済んでいること | 残っていること | 工数 | 段階 |
++| --- | --- | --- | --- | --- | --- | --- |
++| 3 | 遅延の補償がない | 動く人には「角速度 × 遅延」の分だけ必ず遅れる | 準備（指令角の履歴、F27） | 絶対角方式とカルマンフィルタで、遅延の分だけ先を狙う | 段階 11 全体で 2〜3 日 | 11 |
++| 5 | カメラ校正の値が正しくない | 角度の換算がずれる。今のファイルは fx 1308、fy 1074、RMS 4.56 px で不自然 | 縦横比が違うときの警告（F17）。コードは IR 用のファイルを読んでいる | IR カメラを 1280×720 で取り直す。fx と fy がほぼ同じ、RMS 1 px 未満を確かめる | 2〜3 時間 | 8（段階 11 の前まで） |
++| 7 | ID 追跡がない | 一番大きい枠を選ぶだけなので、別の人に乗り換える | なし | ID 追跡（ByteTrack など）を入れる | 段階 11 に含む | 11 |
++| 8 | 古いフレームを使う | 「少し前の位置」を追う | バッファ 1 枚の要求（F13）、別スレッドで最新の 1 枚を渡す形（F26）、720p への切り替えの変数 | 取り込みの既定を 1280×720 にする。再キャリブレーションのあとに行う | 30 分 + 計測 | 10 |
++| 26 | バッファ 1 枚で fps が半分になるカメラがある（C2） | ループが約 15 Hz になる | `CAP_BUFFER` で枚数を変えられる | 実機のループ Hz を見る。約 15 Hz（`loop_ms` が約 66 ms）なら `CAP_BUFFER=2` と比べ、既定を変える | 計測に含む | 7 |
++| — | person 専用のモデルでない | COCO 80 クラスのモデルから person だけを使っている | なし | person だけを検出するモデルに切り替え、エンジンを作り直す | 半日 | 10 |
++| — | シリアル受信の小さな不具合 | 長さの値が壊れると区切りがずれたままになる。ピン設定の送信に失敗しても気づけない | なし | `px3_servo_node.cpp` の `read_loop` と `send_set_pin_mode` を直す | 30 分 | 10 |
++
++課題 2 のうち「角度を 0.1° 刻みにする」は、マイコンのファームを自作する作業です。段階 12（任意）として 6 節に載せています。
++
++## 6. note
++
++1〜5 節に入らないことをまとめています。今後の段階、計測のしかた、見積もり、訂正と補足、対象外、用語、改訂履歴の順です。
++
++### 6.1 今後の段階（7〜13）
++
++次の作業は段階 7 の計測です。段階 1〜6 と 9a は完了しています（2 節）。
++
++| 段階 | 内容 | 残りの目安 | 前提 | 状態 |
++| --- | --- | --- | --- | --- |
++| 7 | 計測と制御の修正 | 半日（遅延と S1〜S3 の計測、ゲインの調整） | なし（すぐ始められる） | コードの修正は済み。計測が残り |
++| 8 | 配線強化とカメラの再キャリブレーション | 数日 | 9 と同時に決める | 未着手 |
++| 9 | 起動センサーを安定した方式に変える | 数日 | 9a のあとも反応しないことが残る場合だけ。8 と同時 | 未着手（要否は様子を見て判断） |
++| 10 | コードの整理 | 半日 + 再キャリブレーションのあとの 720p 化 | 720p 化は 8 のあと | 大部分は済み。5 節の 3 件が残り |
++| 11 | 予測と追跡 | 2〜3 日 | 7 の計測、再キャリブレーション | 準備は済み（F27）。本体は未着手 |
++| 12 | サーボ制御をマイコンに移す（任意） | 3〜5 日 | 8 の配線替えと時期を合わせる | 未着手 |
++| 13 | 強化学習（シミュレーション → 実機） | 1〜2 週 | 7〜12 | 未着手 |
++
++**段階 7：計測と調整（最優先）。** 今の誤差を数字で押さえ、制御の修正の効果を測ります。完了の目安は、S2 の平均誤差が直す前の半分前後になることです。
++
++- [ ] 遅延を測る。カメラの前でストップウォッチを映し、画面に出た時刻との差を見る
++- [ ] ループ Hz を見る。約 15 Hz（`loop_ms` が約 66 ms）なら `CAP_BUFFER=2` と比べる（課題 26）
++- [ ] 直す前の基準を測る。修正前のコード（2026-11-18）で、`SAVE_FRAMES=false` を付けて S1〜S3 を測る
++- [ ] 修正後のコードで S1〜S3 を測る
++- [ ] `KD=0`、`KD=0.3`、`KD=0.6` を比べる。モデルでは差は 1〜2 cm
++- [ ] 遅延が 100 ms 以下なら `KP=0.4` を試す。165 ms を超えていたら `KP=0.2` を試す
++- [ ] 測ったループ周波数と遅延をモデル計算に入れ、モデルを答え合わせする。このモデルは 13 でも使う
++
++調整の順番は「遅延を測る → KD を比べる → KP を試す」です。この制御は位置に足していく形なので、Kp は実質的に積分、Kd は実質的に比例として効きます。Kp は遅延が長いほど行き過ぎます。S1 で指令が細かく揺れる（ハンチング）なら、死帯を少し上げます（`DEAD_ZONE=1.5`）。
++
++Kd の単位は以前と違います。新しい Kd = 以前の Kd ÷ dt です。元のロードマップの案「Kd 0.2 → 0.02」は、30 Hz では新しい単位で 0.6 に当たります。
++
++**段階 8：配線強化とカメラの再キャリブレーション。** 線が抜けたり接触が悪くなったりするのをなくし、カメラの角度換算を正しくします。
++
++- ネジ端子シールド、5V / GND の分配を基板かレバー式コネクタに、ロック付きコネクタ（JST-XH）
++- サーボ用に別の 5V 電源（2A 以上、GND は共通）
++- 3D プリンタでカメラとセンサーのマウントを作り、土台にネジ止め
++- 付け直したら、IR カメラを 1280×720 でキャリブレーションし直す（課題 5）
++
++再キャリブレーションは段階 11 の前までに済ませます。閉ループの追従では換算のずれはゲインのずれになるだけですが、角速度を使う予測（11）では誤差になります。
++
++**段階 9：起動センサーを安定した方式に変える。** 9a（F25）のあともしばらく使って「反応しない」が残る場合だけ進みます。その場合の原因は、センサー本体か取り付けです。センサーが変わるとマウントの形も変わるので、8 と同時に決めます。
++
++| 候補 | 良い点 | 気になる点 |
++| --- | --- | --- |
++| ミリ波レーダー | 止まっている人も検知でき、誤検知が少ない | 部品の追加と配線の変更が必要 |
++| カメラの差分検知 | センサーを足さない。今の IR カメラで動きを見る | 待機中もカメラと Jetson が動き続ける |
++| PIR の改善 | 部品はそのまま | 配線・取り付け・再検知の処理を見直しても限界がある |
++
++**段階 10：コードの整理。** 残りは 5 節の 3 件（720p の既定化、person 専用モデル、シリアル受信の修正）です。前処理の GPU 化と INT8 化は後回しにします。ループはカメラの 30 fps で頭打ちで、推論はもう十分速いためです。
++
++**段階 11：予測と追跡。** 遅延による追従遅れ（課題 3）と、人の乗り換え（課題 7）をなくします。
++
++- 土台は「絶対角方式」にする。フレームを撮ったときのサーボ角 + 誤差 = 人の絶対角。これを状態にして、カルマンフィルタで角度と角速度を推定し、測った遅延の分だけ先を狙う。一瞬見失っても、予測でつなぐ
++- 撮影時の指令角と人の絶対角は、もう CSV に記録している（`servo_at_capture_*`、`target_abs_*`、F27）。段階 7 の計測の CSV で、この方式を先に検討できる
++- サーボは位置を読めないので、履歴にあるのは指令角。実際の角度との差は `SERVO_LAG_MS` で補う
++- ID 追跡（ByteTrack など）で、同じ人を追い続ける
++- 参考：rm_auto_aim（MIT）。「検出 → 追跡 → マイコンへ送信」という構成が PX と同じ
++- ここでできた「PD 制御＋予測」を、13 の強化学習と比べるときの基準にする
++
++**段階 12：サーボ制御をマイコンに移す（任意）。** 角度を 1° 刻みではなく 0.1° 刻みで、なめらかに動かします（課題 2 の残り）。
++
++- 今は Arduino が「受け取った整数の角度をそのまま出すだけ」になっている
++- 自作ファーム（RP2040 / STM32 / ESP32）に替える。Jetson は目標角と角速度を送り、マイコンが 200 Hz〜1 kHz で補間して動かす
++- これで死帯を 0.5° まで下げられる
++- 任意：位置を読めるシリアルサーボか、ジンバル用モーターに替える。段階 11 の「指令角と実際の角度の差」もなくなる
++
++**段階 13：強化学習（シミュレーション → 実機）。** 制御を強化学習で学ばせ、シミュレーションで学んだものを実機で動かします（sim-to-real）。
++
++- 保管してある MuJoCo のシミュレーションを戻し、学習環境（Gymnasium）にする
++- 遅延・ノイズ・サーボの特性・歩き方をランダムに変えて、PPO で学習させる。ランダムにする範囲は 7 の実測値から決める
++- DGX で学習 → ONNX → TensorRT で Jetson に載せ、実機で低速から確かめる
++- 11 の「PD 制御＋予測」と、同じシナリオ（S1〜S3）で比べる
++
++### 6.2 評価方法
++
++どの段階も、同じ 3 つのシナリオで前後を測り、記録表に数字を残します。床の、カメラから 5 m の位置に、横 4 m の線を貼っておきます。
++
++| シナリオ | やり方 | 見る数字 |
++| --- | --- | --- |
++| S1 静止 | 5 m 先に 30 秒立つ | 誤差の平均、1 秒あたりの指令の変化回数（ハンチングの有無） |
++| S2 普通の歩行 | 線の上を約 1.3 m/s（4 m を約 3 秒）で 5 往復 | 誤差の平均と 95% 値（度と cm）、見失った回数 |
++| S3 ゆっくり歩行 | 同じ線を約 0.7 m/s で 5 往復 | S2 と同じ |
++
++数字は次の手順で取れます。
++
++```bash
++# コンテナ内。シナリオごとに CSV を分ける
++TIMING_CSV=/ros2_ws/work/bench/results/stage7/live_s2.csv PROVIDER=trt ./launch_px.sh
++python3 bench/summarize.py bench/results/stage7 --distance-m 5
++```
++
++集計の「追従」の表に、検出率、ループ Hz、横の誤差の平均と 95% 値（度と cm）、指令変化 / 秒（横と縦）、取りこぼしの回数、WATCH に戻った回数、フレームの古さが出ます。誤差は、検出できたフレームでの「画像の中心からのずれ」です。見失っている間のずれは入らないので、必ず検出率と一緒に見ます。
++
++修正前のコードの CSV には誤差の列が無いので、基準（段階 6 完了時）で数字として取れるのはループ Hz と推論時間です。誤差は目視か、動画から測ります。
++
++### 6.3 記録表（測るたびに埋めていく）
++
++| 段階 | ループ Hz | 推論 ms | S1 指令変化 / 秒 | S2 平均誤差 | S2 95% 値 | S3 平均誤差 | 見失い |
++| --- | --- | --- | --- | --- | --- | --- | --- |
++| 6 完了時（基準、保存なし） |  |  |  |  |  |  |  |
++| ＋7、9a、10 の修正（今のコード） |  |  |  |  |  |  |  |
++| ＋10 720p を既定に |  |  |  |  |  |  |  |
++| ＋11 予測 |  |  |  |  |  |  |  |
++| ＋12 マイコン |  |  |  |  |  |  |  |
++| 13 強化学習 |  |  |  |  |  |  |  |
++
++まだ記録していない実機の結果が 4 つあります。分かったら書き足します。
++
++- カメラがバッファ 1 枚を受け付けたか（起動ログの `Camera buffer size: 1`）
++- 追跡中のループ Hz と、フレームの古さ（`frame_age_ms`）
++- ストップウォッチで測った遅延（ms）
++- PIR の前に人が立ったまま起動したとき、DETECT に入ったか（Telemetrix が最初の値を報告するか）
++
++### 6.4 モデル計算による見積もり（実測ではありません）
++
++人が 5 m 先を横に 1.3 m/s で歩く場合の平均誤差です。元のロードマップの数字をそのまま載せています。`px_track_sim.py` を受け取っていないため、この数字は検証できていません。
++
++| ケース | 平均誤差 |
++| --- | --- |
++| 以前（CPU、12 Hz、制御そのまま） | 約 79 cm |
++| 今（TensorRT、30 Hz、制御そのまま） | 約 53 cm |
++| ＋ 制御の修正（段階 7、12） | 約 11 cm |
++| ＋ 速度の予測（段階 11） | 約 3 cm |
++
++「今」の 53 cm は 30 Hz を前提にしています。修正前のコードを普段どおり起動すると PNG を 2 枚保存していたので（課題 12）、実際のループは 30 Hz より遅かった可能性があります。実測がこの見積もりと大きくずれたら、測った周波数と遅延でモデルの方を直してから次に進みます。
++
++遅延と Kp の目安です。別の簡易モデルでの見積もりで、Kd はどれも 0.3 です。
++
++| 遅延 | Kp 0.2 | Kp 0.3（既定） | Kp 0.4 |
++| --- | --- | --- | --- |
++| 約 100 ms | 安定 | 安定 | 安定 |
++| 約 130 ms | 安定 | 安定 | 揺れ始める |
++| 約 165 ms | 安定 | 揺れ始める | 発振 |
++| 約 200 ms | 安定 | 発振 | 発振 |
++
++修正のレビューのモデル計算では、絶対角方式（予測なし）は遅延 150 ms でも揺れません（S1 の指令変化 0.4 回 / 秒）。ただし動く人には遅れます（S2 平均誤差 28 cm）。予測と組み合わせる前提です。
++
++### 6.5 訂正と補足
++
++**課題 13 の訂正。** 当初は「最大約 300 ms 古い角度を書く」と見立てましたが、測ると違いました。33 ms 均等で送ると、元のコードでも遅れは平均 0.4 ms でした。15・15・69 ms の繰り返し（平均は同じ 30 Hz）で送ると、元のコードは平均 12.9 ms、最大 28.4 ms、修正後は平均 1.3 ms、最大 5.0 ms です（PC 上、仮想シリアルでの計測）。30 fps のカメラでは、指令が溜まり続けることはありません。
++
++**課題 5 の記述の訂正。** 元のロードマップは「別のカメラ（BRIO、720p）の値を流用」としていましたが、コードはすでに IR カメラ用のファイル（2026-07-19 撮影、63 枚）を読んでいます。問題は、そのファイルの値が不自然なことです。
++
++**課題 14 の中身。** 取りこぼす経路は 3 つありました。
++
++1. WATCH に戻った直後、PIR が HIGH のままだと新しい立ち上がりが来ない。コードはピン設定の再送で今の値が報告されることを期待していたが、Telemetrix が実際にそう動くかは未確認
++2. 報告が来ても、watch_node のリセットより先に届くと捨てられる
++3. px2 は、px3 の準備前に来た起動要求を消してしまう
++
++F25 でこの 3 つを直しました。PC 上で「HIGH を 1 回だけ報告し、再送には答えない Arduino」を作って比べると、修正前は最初に WATCH に戻ったあと 75 秒間 1 度も起動せず、修正後は約 1.1 秒後に再起動しました。修正後は、WATCH に戻ってから 1 秒は再起動しません（`REWAKE_DELAY_MS`）。人がいないのに PIR が HIGH のままの間は、約 2 秒おきに DETECT と WATCH を往復します。
++
++**リポジトリのファイル。** `.clang-format` と `.gitignore`（F18）は、推定・新規に作ったものです。以前作ったファイルが手元にあれば、それで置き換えます。
++
++### 6.6 対象外・保留
++
++- RMVision（参考にした公開コード）は、コードを使いません。ライセンスの表記がなく、古いためです。「重い検出と軽い追跡を組み合わせる」考え方だけを 11 で使います
++- VLA（言語で指示するロボット制御）は保留です
++- 「検出を数フレームに 1 回にして、その間を追跡で埋める」は必須でなくなりました。TensorRT で毎フレーム検出できるからです
++- 校正と取り込みの解像度を CI で調べる案は見送りました。解像度は起動時の変数で変わるので、起動時の警告にしました
++
++### 6.7 用語
++
++| 用語 | 意味 |
++| --- | --- |
++| PD 制御 | 誤差に比例する量（P）と、誤差の変化に比例する量（D）を足して、動かす量を決める制御 |
++| 増分 PD 制御 | PD 制御で決めた量を、今の位置に足していく形。PX はこの形。位置で見ると、Kp は実質的に積分、Kd は実質的に比例として効く |
++| 死帯 | 誤差がこの値より小さければ動かさない範囲。小さな揺れでサーボが震えるのを防ぐ |
++| ハンチング | 目標の周りを行ったり来たりして、指令が細かく揺れること |
++| 絶対角方式 | フレームを撮ったときのサーボ角に誤差を足して、人の絶対角を出し、そこへ向ける方式。段階 11 の土台 |
++| TensorRT | NVIDIA の GPU 向け推論エンジン。FP16 / FP32 は計算の精度（ビット数） |
++| カルマンフィルタ | 揺れる測定値から、位置と速度を推定する方法。少し先の位置を予測できる |
++| sim-to-real | シミュレーションで学習した制御を、実機で動かすこと |
++| モデル計算 | 制御ループを簡単に模した計算（`px_track_sim.py`）。実測ではなく、改良の効果を比べるための見積もり |
++| F01〜F27 | 2026-11-19 にコードへ入れた修正の ID。修正記録（`docs/04_fix_log_2026-11-19.md`）に箇所と確認項目がある |
++| R、C | 修正 F01〜F17 のレビュー結果（`docs/06_review_of_fixes_F01-F17.md`）の指摘の番号 |
++
++### 6.8 改訂履歴
++
++| 日付 | 内容 |
++| --- | --- |
++| 2026-11-19（リポジトリへの収録） | この文書を `docs/05_roadmap_2026-11-19.md` として収録。差分を `docs/04_fix_patch_2026-11-19.patch`、修正のレビュー結果を `docs/06_review_of_fixes_F01-F17.md` として `docs/` に追加 |
++| 2026-11-19（構成の変更） | 6 つの節（概要、現状、課題、対応済み、未対応、note）に組み替えた。3 つに分かれていた課題の表を、対応済み（23 個）と未対応（5 個 + 2 件）の 2 つにまとめた。段階、評価方法、見積もりなどは note に移した |
++| 2026-11-19（F18〜F27 の実機確認） | 修正 F18〜F27 を実機で動作確認し、問題なし。課題 14 と段階 9a を done に。修正のレビューで見つかった課題 21〜28 を追加。段階 7 の手順を「遅延を測る → KD → KP」の順に変更。段階 11 の土台を絶対角方式に。パッチと修正記録を F01〜F27 の 1 組にまとめた |
++| 2026-11-19（F01〜F17 の実機確認） | 修正 F01〜F17 を実機で動作確認し、問題なし。課題と段階の状態を done に更新 |
++| 2026-11-19（改訂） | コードレビューの結果で課題 1〜11 を更新。課題 12〜20 を追加。修正 F01〜F17 をコードに入れた。段階 9a を新設。課題 13 の影響を「大」から「小」に訂正 |
++| 2026-11-19（初版） | 段階 1〜6 の完了と、段階 7〜13 の改良順をまとめた |
+diff -ruN a/docs/06_review_of_fixes_F01-F17.md b/docs/06_review_of_fixes_F01-F17.md
+--- a/docs/06_review_of_fixes_F01-F17.md	1970-01-01 00:00:00.000000000 +0000
++++ b/docs/06_review_of_fixes_F01-F17.md	2026-11-19 01:11:01.257343383 +0000
+@@ -0,0 +1,123 @@
++# PX4.4 修正 F01〜F17 のレビュー結果
++
++Nov 19, 2026 · @oga
++
++## 概要
++
++修正 F01〜F17 はどれも意図どおりで、動作を壊すバグは見つかりませんでした。この文書には、レビューで新たに見つかった点だけを載せています。内訳は、すぐ直すもの 2 件と、調整・計測で気をつける点 5 件です。
++
++- 対象：`px4.4-jetson-tracker-fixed_2026-11-19.zip`、`px44_fixes_2026-11-19.patch`、`docs/04_fix_log_2026-11-19.md`
++- 確かめたこと：パッチ全体を読んだ。`ci_checks/run_local.sh` を実行した。制御ループのモデルでゲインを比べた
++- CI：`.clang-format` を足せば、すべて合格（ALL CHECKS PASSED）
++
++**対応状況（2026-11-19 追記）**：指摘 7 件はすべて妥当と判断し、修正 F18〜F27 として反映しました。2026-11-19 に実機で動作を確認済みです。依頼事項 6 件のうち 4 件が完了、2 件（R1、C2）は手元での作業が残っています。詳しくは末尾の「対応結果」を参照してください。
++
++## すぐ直すもの（リポジトリ）
++
++どちらもファイルを足すか名前を変えるだけで、コードは変えません。
++
++| # | 問題 | 影響 | 直し方 |
++| --- | --- | --- | --- |
++| R1 | `.clang-format` と `.gitignore` がリポジトリにない | GitHub の `cpp-ci` が全ファイルで失敗する。`yolo11.onnx`・engine・ONNX Runtime の tgz を誤ってコミットするおそれがある | 以前作った 2 ファイルをリポジトリの一番上に追加する。修正記録の「推定した設定」ではなく、このファイルを正とする |
++| R2 | `SeamlessTrack/src/px2/data/.geek` | `.gitkeep` の打ち間違い。中身は空なので、今は困らない | `git mv .geek .gitkeep` |
++
++## 調整と計測で気をつける点
++
++### C1. Kp を上げる前に、遅延を測る（最重要）
++
++今の制御は「位置に足していく」形（`pos += Kp×誤差 + Kd×誤差の変化`）です。この形では、Kp は実質的に**積分**のゲイン、Kd は実質的に**比例**のゲインとして効きます。サーボが動き終わるまでの間、同じ誤差を毎フレーム足し続けるので、遅延が長いほど行き過ぎます。
++
++モデル計算の結果です（30 Hz、5 m 先で 1.3 m/s で歩く。実測ではありません）。
++
++| 設定 | 遅延 70 ms：S2 平均誤差 | 遅延 150 ms：S2 平均誤差 | 遅延 150 ms：S1 指令変化 / 秒 |
++| --- | --- | --- | --- |
++| Kp 0.3、Kd 0 | 15 cm | 17 cm | 11.6 |
++| Kp 0.3、Kd 0.3（既定） | 14 cm | 16 cm | 9.6 |
++| Kp 0.3、Kd 0.6 | 14 cm | 15 cm | 9.2 |
++| Kp 0.4、Kd 0.3 | 11 cm | **43 cm（発振）** | **28.3** |
++
++- Kd を 0〜0.6 で変えても、差は 1〜2 cm。修正記録の「KD=0 / 0.3 / 0.6 を比べる」はそのままでよい
++- Kp 0.4 は遅延が短いときだけ効き、長いと発振する
++- 順番は「ストップウォッチで遅延を測る → Kp 0.4 を試す」。遅延が 100 ms を超えていたら、Kp は 0.3 のままにする
++- コードのコメントと文書で、この「実質的な意味」を一言書いておくと、調整する人が迷いません
++
++### C2. バッファ 1 枚で fps が半分になることがある
++
++V4L2 のカメラでは、`CAP_PROP_BUFFERSIZE=1` にすると読み取りが 1 フレームおきになることがあります。計測 CSV の `loop_ms` が約 66 ms なら、`CAP_BUFFER=2` と比べてください。
++
++### C3. 集計（summarize.py）の数字の読み方
++
++- 「見失い」は、1 フレームだけ取りこぼした場合も 1 回と数える。WATCH に戻った回数とは別物
++- 誤差は検出できたフレームだけで計算している。見失っている間の大きなずれは平均に入らない
++- 「指令変化 / 秒」は横（`cmd_x_deg`）だけ
++
++提案：集計に「検出率（n\_det / n）」と「WATCH に戻った回数」の列を足す。誤差は、検出率と一緒に見る。
++
++### C4. 起動順を px2 → px3 に変えたことの副作用（軽微）
++
++- px2 の初期化（カメラを開く、エンジンを読む）で失敗すると、px3 が作られない。そのためサーボが中央に動かない
++- px3 の起動（4 秒待ち）が、エンジンを読み終わったあとになる
++- 実害はほぼない。「サーボが動かない」ときは、まず px2 の起動ログを見る
++
++### C5. パスがコンテナ内の絶対パスで固定（以前から）
++
++`inference.h` の `kPkgPath = "/ros2_ws/work/src/px2/"` で、モデル・校正ファイル・保存画像の場所が決まります。コンテナの外では動きません。段階 10 で、パラメータにするか `ament_index` で探す形にするとよいです。
++
++## 段階 11 への提案
++
++「撮影したときのサーボ角＋誤差＝人の絶対角」を出して、そこへ向ける方式も、同じモデルで試しました。
++
++| 方式 | 遅延 150 ms：S2 平均誤差 | 遅延 150 ms：S1 指令変化 / 秒 |
++| --- | --- | --- |
++| 今の方式（既定のゲイン） | 16 cm | 9.6 |
++| 絶対角方式（予測なし） | 28 cm | 0.4 |
++
++- 遅延が長くても揺れない。ただし予測がないと、動く人には遅れる
++- 段階 11 でカルマンフィルタを入れるときは、この方式を土台にするのがよい。人の絶対角を状態にして、遅延の分だけ先を狙う
++- そのためには、「フレームを撮った時刻のサーボ角」が要る。今は指令角の履歴を持っていないので、履歴を残す仕組みを先に入れる
++
++## 依頼事項
++
++- [ ] R1：`.clang-format` と `.gitignore` をリポジトリに追加する — **仮のファイルを追加済み（F18）。以前作った 2 ファイルへの置き換えが残り**
++- [x] R2：`.geek` を `.gitkeep` に名前を変える — 完了（F19）
++- [x] C1：段階 7 の手順を「遅延を測る → KD を比べる → 遅延が 100 ms 以下なら KP=0.4 を試す」の順に書き換える — 完了（F20、ロードマップ 6.1 節）
++- [ ] C2：`loop_ms` を見て、約 66 ms なら `CAP_BUFFER=2` と比べる — **未確認。段階 7 の計測で確かめる（ロードマップの課題 26）**
++- [x] C3：`summarize.py` に検出率と WATCH に戻った回数を足す — 完了（F21、F22）
++- [x] C5：段階 10 の作業に「`kPkgPath` を固定しない」を足す — 完了（F24。作業に足すだけでなく、コードも直した）
++
++モデル計算の前提：1 軸（横）、サーボは速度上限 350°/s と遅れ 20 ms、検出の揺れ 0.3°、整数度の四捨五入、死帯 1°、5 通りの乱数の平均。実機では S1〜S3 の計測で確かめる。
++
++## 対応結果（2026-11-19 追記）
++
++指摘をコードと照らして確かめ、7 件とも妥当と判断しました。修正は F18〜F27 として入れ、2026-11-19 に実機で動作を確認しています。修正箇所（ファイルと行番号）は `docs/04_fix_log_2026-11-19.md`、全体の状態は「PX 改良ロードマップ（2026-11-19 改訂）」にあります。
++
++| # | 判定 | 確かめたこと | 対応 | 状態 |
++| --- | --- | --- | --- | --- |
++| R1 | 妥当 | 受け取った zip にも、修正版の zip にも 2 ファイルは入っていなかった | F18。`.clang-format`（元のコード 15 ファイルが差分 0 になる設定を推定）と `.gitignore`（新規）を追加 | 仮対応。以前作った 2 ファイルが正なので、手元で置き換える |
++| R2 | 妥当 | `.geek` は 0 バイト。`Docker/third_party/` には正しい `.gitkeep` がある | F19。改名した。patch には入らないので、patch を使う場合は `git mv` を手で実行する | 完了 |
++| C1 | 妥当 | 別の簡易モデルでも同じ向きの結果になった | F20。コメント、変数の説明、README、修正記録、ロードマップの手順に反映 | 完了。遅延の計測は段階 7 に残る |
++| C2 | 妥当 | V4L2 の UVC カメラで起きることがある挙動 | `launch_px.sh` の `CAP_BUFFER` の説明と、トラブル対応の表に追記（F20、F23） | 未確認。実機のループ Hz を見て判断する |
++| C3 | 妥当 | 3 点ともコードのとおりだった | F21、F22。CSV に `session_id` と `to_watch` を追加。集計に検出率、DETECT に入った回数、WATCH に戻った回数を追加 | 完了 |
++| C4 | 妥当（軽微） | px2 の初期化で例外が出ると px3 は作られない | F23。`docs/03_commands.md` のトラブル対応の表に追記 | 完了 |
++| C5 | 妥当 | モデル・校正ファイル・保存先が同じ定数で決まっていた | F24。`kPkgPath` を廃止し、`model_path`、`calib_path`、`save_dir` をパラメータにした | 完了 |
++| 段階 11 への提案 | 妥当 | 絶対角方式には、撮影時のサーボ角が要る | F27。指令角の履歴を残し、撮影時の指令角と人の絶対角を CSV に記録（制御にはまだ使っていない） | 準備は完了。本体は段階 11 |
++
++指摘に関連して、あわせて入れた修正が 2 件あります。F25（PIR の起動を「今 HIGH かどうか」で判定する形に変更）と F26（別スレッドでカメラを読み続け、最新の 1 枚だけを使う）です。
++
++### レビューへの補足
++
++確認の途中で分かったことが 3 つあります。
++
++1. **C1：遅延がさらに長いと、既定の Kp 0.3 でも発振する。** 別の簡易モデルでは、Kp 0.4 は遅延 約 130 ms で揺れ始め、Kp 0.3 も約 165 ms で揺れ始め、約 200 ms で発振しました。Kp 0.2 は 200 ms でも安定でした（Kd はどれも 0.3。実測ではありません）。そのため手順に「遅延が 165 ms を超えていたら KP=0.2 を試す」を足しています。
++2. **C1：S1 の指令変化の数は、2 つのモデルで合っていない。** 遅延 150 ms・既定のゲインで、このレビューのモデルは 9.6 回 / 秒、別の簡易モデルは 0.5〜1.9 回 / 秒です。サーボのモデルが違うためと考えます。どちらが近いかは、S1 の実測で分かります。
++3. **C3：検出率が高めに出る原因が、もう 1 つあった。** 集計は `first_frame=1` の行を除いていましたが、px2 は「最初に検出するまで」の行をすべて `first_frame=1` にしていました。そのため、検出できなかった行が集計から落ちていました。同じ CSV（656 行）で、以前の集計は 99%、直したあとは 89% です。F21 で `first_frame` を「DETECT に入った最初の 1 フレームだけ 1」に直しています。
++
++### 対象のファイル（現在）
++
++このレビューの対象だった 3 つのファイルは、リポジトリの中の次のファイルに置き換わっています。
++
++- コード一式：このリポジトリ（修正 F01〜F27 を反映済み）
++- `docs/04_fix_patch_2026-11-19.patch`（2026-11-18 のコードに対する差分）
++- `docs/04_fix_log_2026-11-19.md`（修正 F01〜F27 の記録）
++
++全体の状態と今後の段階は `docs/05_roadmap_2026-11-19.md` にあります。
+diff -ruN a/docs/WIRING.md b/docs/WIRING.md
+--- a/docs/WIRING.md	2026-11-18 03:31:42.000000000 +0000
++++ b/docs/WIRING.md	2026-11-19 00:02:07.153245125 +0000
+@@ -110,7 +110,7 @@
+ python3 calibration/pir_telemetrix_validate.py
+ 
+ # 🐳 PX 起動中に、別の端末から（docker exec でコンテナに入る）
+-ros2 topic echo /pir/state         # 手を振って data: true が出れば PIR〜Arduino〜Jetson は正常
++ros2 topic echo /pir/state         # 200 ms ごとに今の値が出る。手を振って true に変われば PIR〜Arduino〜Jetson は正常
+ ros2 topic pub --once --qos-durability transient_local --qos-reliability reliable \
+   /px_wakeup std_msgs/msg/Bool "{data: true}"   # PIR なしでカメラ・推論・サーボだけ確認
+ ```

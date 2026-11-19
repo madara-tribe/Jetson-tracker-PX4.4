@@ -5,13 +5,14 @@
 //
 //  TelemetrixSerial: サーボ write + PIR DIGITAL_REPORT 受信
 //                    （read_loop スレッドで Arduino からの報告を処理）
-//  Px3ServoNode    : /inference → サーボ駆動、PIR → /pir/state 配信
+//  Px3ServoNode    : /inference → サーボ駆動（四捨五入した整数の角度）、PIR → /pir/state 配信
 // ============================================================
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -28,9 +29,9 @@ namespace px3_embedded {
 inline constexpr int SERVO_X_PIN = 10;
 inline constexpr int SERVO_Y_PIN = 9;
 inline constexpr int PIR_PIN = 2; // SB612B OUT → Arduino D2
-// MG996R が目標角度に物理的に到達するまでの待機時間（ms）
-// kAckTimeoutMs (inference.h) はこの値 + ROS通信マージンに設定すること
-inline constexpr int SERVO_ARRIVAL_WAIT_MS = 30;
+// PIR の今の値を /pir/state に送り直す間隔（ms）。変化が無くても送る。
+// 受け取る側（watch_node）が 1 回取りこぼしても、次の送信で追いつけるようにするため
+inline constexpr int PIR_STATE_PERIOD_MS = 200;
 
 // Telemetrix コマンド
 inline constexpr uint8_t CMD_SERVO_ATTACH = 7;
@@ -105,8 +106,12 @@ private:
 
 // ============================================================
 //  Px3ServoNode
-//    /inference 受信 → サーボ角度書き込み → /px3_ack 送信
-//    PIR 変化 → /pir/state publish
+//    /inference 受信 → サーボ角度書き込み（最新の 1 件だけ。待たない）
+//    PIR 変化 → /pir/state publish。さらに PIR_STATE_PERIOD_MS ごとに今の値を送り直す
+//    （/pir/state は「立ち上がり」ではなく「今 HIGH かどうか」を表す）
+//
+//  パラメータ（serial_port / baudrate / x_center_deg / y_center_deg / pir_pin）は、
+//  px2 と同居するときは px2 から parameter_overrides で受け取る（inference.cpp の main）。
 // ============================================================
 class Px3ServoNode : public rclcpp::Node {
 public:
@@ -114,12 +119,12 @@ public:
   ~Px3ServoNode() override;
 
 private:
-  // /inference 受信 → サーボ角度書き込み → /px3_ack publish
+  // /inference 受信 → サーボ角度書き込み
   void on_angle(const custom_msgs::msg::AbsResult::SharedPtr msg);
 
   // PIR 変化通知（read_loop スレッドから呼ばれる）
   void on_pir_change(uint8_t pin, uint8_t value);
-  // px2 がWATCHに戻った通知を受けてpir_detected_をリセット
+  // px2 がWATCHに戻った通知を受けて、PIR の今の値を送り直す
   void on_watch_resumed(const std_msgs::msg::Bool::SharedPtr msg);
 
 private:
@@ -128,11 +133,12 @@ private:
   double y_center_deg_ = 90.0;
 
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_pub_;
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ack_pub_;
   rclcpp::Subscription<custom_msgs::msg::AbsResult>::SharedPtr sub_;
 
   // /pir/state publisher
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pir_state_pub_;
+  rclcpp::TimerBase::SharedPtr pir_state_timer_; // 今の値を定期的に送り直す
+  void publish_pir_state();
 
   // PIR ステート（デバウンス用）
   bool init_ok_{false}; // 初期化完了フラグ（起動直後の誤リセット抑制用）

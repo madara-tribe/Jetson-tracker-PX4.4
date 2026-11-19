@@ -110,7 +110,7 @@ ls /dev/ttyACM*                    # Arduino
 python3 calibration/pir_telemetrix_validate.py
 
 # 🐳 PX 起動中に、別の端末から（docker exec でコンテナに入る）
-ros2 topic echo /pir/state         # 手を振って data: true が出れば PIR〜Arduino〜Jetson は正常
+ros2 topic echo /pir/state         # 200 ms ごとに今の値が出る。手を振って true に変われば PIR〜Arduino〜Jetson は正常
 ros2 topic pub --once --qos-durability transient_local --qos-reliability reliable \
   /px_wakeup std_msgs/msg/Bool "{data: true}"   # PIR なしでカメラ・推論・サーボだけ確認
 ```

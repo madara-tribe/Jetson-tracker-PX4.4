@@ -30,8 +30,7 @@ public:
   explicit CommandHistory(double keep_seconds = 2.0, std::size_t max_samples = 512)
       : keep_(std::chrono::duration_cast<Clock::duration>(
             std::chrono::duration<double>(keep_seconds))),
-        max_samples_(max_samples) {
-  }
+        max_samples_(max_samples) {}
 
   // 指令を送った時刻と角度を残す。時刻は前回以降であること。
   void push(Clock::time_point t, double x_deg, double y_deg) {

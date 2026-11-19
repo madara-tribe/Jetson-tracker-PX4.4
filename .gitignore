@@ -1,0 +1,28 @@
+# ---- ROS 2 / colcon（コンテナ内で作られる）----
+SeamlessTrack/build/
+SeamlessTrack/install/
+SeamlessTrack/log/
+
+# ---- 重いファイル（ローカルに置いて cp する。README「重いファイル」参照）----
+SeamlessTrack/src/px2/weights/*.onnx
+SeamlessTrack/engines/*
+!SeamlessTrack/engines/.gitkeep
+SeamlessTrack/trt_cache/
+Docker/third_party/*
+!Docker/third_party/.gitkeep
+
+# ---- 計測結果・実行時の出力 ----
+SeamlessTrack/bench/results/
+SeamlessTrack/frames/
+SeamlessTrack/src/px2/data/*.png
+
+# ---- Python / ツール ----
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# ---- OS ----
+.DS_Store
+__MACOSX/
